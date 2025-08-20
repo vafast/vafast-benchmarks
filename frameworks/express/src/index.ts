@@ -90,7 +90,6 @@ const ValidateSchema = t.Object({
     name: t.String({ minLength: 2, maxLength: 50 }),
     phone: t.String({ pattern: "^1[3-9]\\d{9}$" }),
     age: t.Number({ minimum: 0, maximum: 120 }),
-    email: t.String({ format: "email" }),
     active: t.Boolean(),
     tags: t.Array(t.String()),
     preferences: t.Object({

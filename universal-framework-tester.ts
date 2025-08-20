@@ -58,7 +58,6 @@ class UniversalFrameworkTester {
           name: "Test User",
           phone: "13800138000",
           age: 25,
-          email: "test@example.com",
           active: true,
           tags: ["test", "user"],
           preferences: {

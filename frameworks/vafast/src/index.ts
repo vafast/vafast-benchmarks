@@ -15,7 +15,6 @@ const TestSchema = Type.Object({
     name: Type.String({ minLength: 2, maxLength: 50 }),
     phone: Type.String({ pattern: "^1[3-9]\\d{9}$" }),
     age: Type.Number({ minimum: 0, maximum: 120 }),
-    email: Type.String({ format: "email" }),
     active: Type.Boolean(),
     tags: Type.Array(Type.String()),
     preferences: Type.Object({
