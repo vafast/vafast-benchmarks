@@ -64,14 +64,14 @@ const ElysiaSchema = t.Object({
 // vafast 原生验证器路由
 export const vafastValidatorRoutes = [
   {
-    method: "GET",
+    method: "POST",
     path: "/",
     handler: createRouteHandler(
       {
         body: TestSchema,
       },
       ({ body }) => {
-        return new Response(JSON.stringify({ message: "Hello World", data: body }));
+        return { message: "Hello World", data: body };
       }
     ),
   },

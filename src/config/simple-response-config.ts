@@ -4,7 +4,7 @@
 
 import { Elysia } from "elysia";
 import { Hono } from "hono";
-import { createRouteHandler } from "vafast";
+import { createRouteHandler, json } from "vafast";
 import express from "express";
 import Koa from "koa";
 import Router from "@koa/router";
@@ -133,9 +133,7 @@ export const vafastRoutesDirect = [
       // 与其它框架保持一致：解析 JSON 请求体
       const body = await parseBody(req);
 
-      return new Response(JSON.stringify({ message: simpleMessage, data: body }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return json({ message: simpleMessage, data: body });
     },
   },
 ];
