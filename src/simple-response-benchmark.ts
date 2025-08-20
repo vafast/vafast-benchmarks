@@ -28,6 +28,8 @@ import {
   generateVafastAnalysis,
   generateFrameworkComparison,
   generateUsageRecommendations,
+  generateDetailedReport,
+  formatPerformance,
   BenchmarkResult,
 } from "./utils/report-utils.js";
 
@@ -118,6 +120,9 @@ async function runSimpleResponseBenchmark(): Promise<TestResult[]> {
   generateUsageRecommendations();
 
   console.log("\n📊 简单响应性能测试完成");
+
+  // 生成详细测试报告
+  generateDetailedReport(simpleResults, "简单响应");
 
   // 转换并返回测试结果
   const testResults: TestResult[] = simpleResults.map((result) => ({

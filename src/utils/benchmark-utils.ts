@@ -29,8 +29,30 @@ export function getMemoryUsage(): { used: number; total: number; percentage: num
 // 新增：强制垃圾回收函数
 export function forceGarbageCollection(): void {
   if (typeof global !== "undefined" && (global as any).gc) {
+    // 多次垃圾回收确保彻底清理
+    (global as any).gc();
+    (global as any).gc();
     (global as any).gc();
   }
+}
+
+// 深度内存清理和系统稳定化
+export async function deepMemoryCleanup(): Promise<void> {
+  console.log("🧹 执行深度内存清理...");
+
+  // 强制垃圾回收
+  forceGarbageCollection();
+
+  // 等待内存稳定
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  // 再次垃圾回收
+  forceGarbageCollection();
+
+  // 等待系统稳定
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  console.log("✅ 内存清理完成");
 }
 
 // 新增：内存使用报告

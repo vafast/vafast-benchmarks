@@ -8,7 +8,7 @@
     "start": "bun run src/simple-response-benchmark.ts",
     "benchmark:simple": "bun run src/simple-response-benchmark.ts",
     "benchmark:validator": "bun run src/validator-benchmark.ts",
-    "benchmark:all": "bun run src/run-all-benchmarks.ts",
+
     "dev": "bun --watch src/simple-response-benchmark.ts",
     "build": "bun build src/simple-response-benchmark.ts --target=bun --outdir=dist",
     "test": "bun test"

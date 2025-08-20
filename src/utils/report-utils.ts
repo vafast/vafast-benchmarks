@@ -2,6 +2,8 @@
  * 性能报告工具函数 - 开源项目标准
  */
 
+import { TEST_CONFIG } from "./benchmark-utils.js";
+
 export interface BenchmarkResult {
   name: string;
   rps: number;
@@ -53,11 +55,15 @@ export function generateSimpleResponseReport(results: BenchmarkResult[]): void {
     const performance =
       index === 0 ? "🥇 第一" : index === 1 ? "🥈 第二" : index === 2 ? "🥉 第三" : "📊";
     const rpsFormatted = formatPerformance(result.rps);
+    const percentage =
+      index === 0 ? "100%" : `${((result.rps / sortedResults[0].rps) * 100).toFixed(1)}%`;
     const avgTime = formatTime(result.duration / (result.rps * (result.duration / 1000)));
     const totalTime = formatTime(result.duration);
-    
+
     console.log(
-      `| ${result.name.padEnd(20)} | ${rpsFormatted.padStart(12)} | ${avgTime.padStart(12)} | ${totalTime.padStart(10)} | ${performance.padStart(11)} |`
+      `| ${result.name.padEnd(20)} | ${rpsFormatted.padStart(12)} (${percentage.padStart(
+        6
+      )}) | ${avgTime.padStart(12)} | ${totalTime.padStart(10)} | ${performance.padStart(11)} |`
     );
   });
 }
@@ -74,11 +80,15 @@ export function generateValidatorReport(results: BenchmarkResult[]): void {
     const performance =
       index === 0 ? "🥇 第一" : index === 1 ? "🥈 第二" : index === 2 ? "🥉 第三" : "📊";
     const rpsFormatted = formatPerformance(result.rps);
+    const percentage =
+      index === 0 ? "100%" : `${((result.rps / sortedResults[0].rps) * 100).toFixed(1)}%`;
     const avgTime = formatTime(result.duration / (result.rps * (result.duration / 1000)));
     const totalTime = formatTime(result.duration);
-    
+
     console.log(
-      `| ${result.name.padEnd(20)} | ${rpsFormatted.padStart(12)} | ${avgTime.padStart(12)} | ${totalTime.padStart(10)} | ${performance.padStart(11)} |`
+      `| ${result.name.padEnd(20)} | ${rpsFormatted.padStart(12)} (${percentage.padStart(
+        6
+      )}) | ${avgTime.padStart(12)} | ${totalTime.padStart(10)} | ${performance.padStart(11)} |`
     );
   });
 }
@@ -96,19 +106,31 @@ export function generateVafastAnalysis(results: BenchmarkResult[]): void {
 
     const factoryOverhead = ((directResult.rps / factoryResult.rps - 1) * 100).toFixed(1);
     const fullOverhead = ((directResult.rps / fullResult.rps - 1) * 100).toFixed(1);
-    
-    const directAvgTime = formatTime(directResult.duration / (directResult.rps * (directResult.duration / 1000)));
-    const factoryAvgTime = formatTime(factoryResult.duration / (factoryResult.rps * (factoryResult.duration / 1000)));
-    const fullAvgTime = formatTime(fullResult.duration / (fullResult.rps * (fullResult.duration / 1000)));
+
+    const directAvgTime = formatTime(
+      directResult.duration / (directResult.rps * (directResult.duration / 1000))
+    );
+    const factoryAvgTime = formatTime(
+      factoryResult.duration / (factoryResult.rps * (factoryResult.duration / 1000))
+    );
+    const fullAvgTime = formatTime(
+      fullResult.duration / (fullResult.rps * (fullResult.duration / 1000))
+    );
 
     console.log(
-      `| 直接路由      | ${formatPerformance(directResult.rps).padStart(11)} | 基准   | ${directAvgTime.padStart(8)} |`
+      `| 直接路由      | ${formatPerformance(directResult.rps).padStart(
+        11
+      )} | 基准   | ${directAvgTime.padStart(8)} |`
     );
     console.log(
-      `| 工厂路由      | ${formatPerformance(factoryResult.rps).padStart(11)} | +${factoryOverhead}% | ${factoryAvgTime.padStart(8)} |`
+      `| 工厂路由      | ${formatPerformance(factoryResult.rps).padStart(
+        11
+      )} | +${factoryOverhead}% | ${factoryAvgTime.padStart(8)} |`
     );
     console.log(
-      `| 完整验证      | ${formatPerformance(fullResult.rps).padStart(11)} | +${fullOverhead}% | ${fullAvgTime.padStart(8)} |`
+      `| 完整验证      | ${formatPerformance(fullResult.rps).padStart(
+        11
+      )} | +${fullOverhead}% | ${fullAvgTime.padStart(8)} |`
     );
   }
 }
@@ -126,8 +148,10 @@ export function generateFrameworkComparison(results: BenchmarkResult[]): void {
 
     const elysiaRatio = (elysia.rps / vafastDirect.rps).toFixed(2);
     const expressRatio = (express.rps / vafastDirect.rps).toFixed(2);
-    
-    const vafastAvgTime = formatTime(vafastDirect.duration / (vafastDirect.rps * (vafastDirect.duration / 1000)));
+
+    const vafastAvgTime = formatTime(
+      vafastDirect.duration / (vafastDirect.rps * (vafastDirect.duration / 1000))
+    );
     const elysiaAvgTime = formatTime(elysia.duration / (elysia.rps * (elysia.duration / 1000)));
     const expressAvgTime = formatTime(express.duration / (express.rps * (express.duration / 1000)));
 
@@ -160,12 +184,12 @@ export function generateMemoryRecommendations(percentage: number): void {
 // 生成测试摘要
 export function generateTestSummary(results: BenchmarkResult[], testType: string): void {
   console.log(`\n## ${testType} 测试摘要`);
-  
-  const totalRequests = results.reduce((sum, r) => sum + (r.rps * (r.duration / 1000)), 0);
+
+  const totalRequests = results.reduce((sum, r) => sum + r.rps * (r.duration / 1000), 0);
   const totalTime = results.reduce((sum, r) => sum + r.duration, 0);
   const fastest = results.reduce((fastest, r) => (r.rps > fastest.rps ? r : fastest));
   const slowest = results.reduce((slowest, r) => (r.rps < slowest.rps ? r : slowest));
-  
+
   console.log(`| 指标 | 数值 |`);
   console.log(`|------|------|`);
   console.log(`| 总请求数 | ${totalRequests.toLocaleString()} |`);
@@ -173,4 +197,43 @@ export function generateTestSummary(results: BenchmarkResult[], testType: string
   console.log(`| 最快 | ${fastest.name} (${formatPerformance(fastest.rps)}) |`);
   console.log(`| 最慢 | ${slowest.name} (${formatPerformance(slowest.rps)}) |`);
   console.log(`| 性能差距 | ${((fastest.rps / slowest.rps - 1) * 100).toFixed(1)}% |`);
+}
+
+// 生成详细测试报告
+export function generateDetailedReport(
+  results: BenchmarkResult[],
+  testType: "简单响应" | "验证器"
+): void {
+  console.log("\n" + "=".repeat(80));
+  console.log("📋 详细测试报告 (可手动复制)");
+  console.log("=".repeat(80));
+  
+  const testTime = new Date().toISOString();
+  const runtime = process.versions.node
+    ? `Node.js ${process.versions.node}`
+    : `Bun ${process.version}`;
+  const platform = `${process.platform} ${process.arch}`;
+  
+  console.log(`\n**测试环境信息**`);
+  console.log(`- 测试类型: ${testType}性能测试`);
+  console.log(`- 测试时间: ${testTime}`);
+  console.log(`- 运行时: ${runtime}`);
+  console.log(`- 平台: ${platform}`);
+  console.log(`- 测试配置: ${TEST_CONFIG.iterations.toLocaleString()} 次请求, ${TEST_CONFIG.warmupRequests} 次预热`);
+  
+  console.log(`\n**性能排名**`);
+  const sortedResults = [...results].sort((a, b) => b.rps - a.rps);
+  sortedResults.forEach((result, index) => {
+    const rank =
+      index === 0
+        ? "🥇 第一名"
+        : index === 1
+        ? "🥈 第二名"
+        : index === 2
+        ? "🥉 第三名"
+        : `第${index + 1}名`;
+    const percentage =
+      index === 0 ? "100%" : `${((result.rps / sortedResults[0].rps) * 100).toFixed(1)}%`;
+    console.log(`${rank}: ${result.name} - ${formatPerformance(result.rps)} (${percentage})`);
+  });
 }

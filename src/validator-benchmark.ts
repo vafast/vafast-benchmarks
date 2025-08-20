@@ -24,7 +24,11 @@ import {
 } from "./utils/benchmark-utils.js";
 
 // 导入报告函数
-import { generateValidatorReport, BenchmarkResult } from "./utils/report-utils.js";
+import {
+  generateValidatorReport,
+  generateDetailedReport,
+  BenchmarkResult,
+} from "./utils/report-utils.js";
 
 // 测试结果接口（与 run-all-benchmarks.ts 保持一致）
 interface TestResult {
@@ -193,6 +197,9 @@ async function runValidatorBenchmark(): Promise<TestResult[]> {
   generateValidatorReport(validatorResults);
 
   console.log("\n📊 验证器性能测试完成");
+
+  // 生成详细测试报告
+  generateDetailedReport(validatorResults, "验证器");
 
   // 转换并返回测试结果
   const testResults: TestResult[] = validatorResults.map((result) => ({
