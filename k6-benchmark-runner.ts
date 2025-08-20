@@ -90,7 +90,15 @@ class K6BenchmarkRunner {
 
       server.stdout?.on("data", (data) => {
         output += data.toString();
-        if ((!started && output.includes("Server running")) || output.includes("listening")) {
+        // 检查多种可能的启动成功标识
+        if (!started && (
+          output.includes("Server running") || 
+          output.includes("listening") ||
+          output.includes("running at") ||
+          output.includes("🦊 Elysia is running") ||
+          output.includes("Server started") ||
+          output.includes("Ready")
+        )) {
           started = true;
           console.log(`✅ ${config.displayName} 服务器已启动 (端口: ${config.port})`);
           resolve(true);
@@ -106,14 +114,14 @@ class K6BenchmarkRunner {
         resolve(false);
       });
 
-      // 超时处理
+      // 超时处理 - 增加超时时间到 20 秒
       setTimeout(() => {
         if (!started) {
-          console.error(`⏰ ${config.displayName} 启动超时`);
+          console.error(`⏰ ${config.displayName} 启动超时 (20秒)`);
           server.kill();
           resolve(false);
         }
-      }, 10000);
+      }, 20000);
 
       this.servers.set(config.name, server);
     });
