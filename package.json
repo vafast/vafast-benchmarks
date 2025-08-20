@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "start:servers": "bun run start-servers.ts",
-    "benchmark:k6": "bun run k6-benchmark-runner.ts",
     "k6:full": "k6 run k6-test-config.js",
     "dev": "bun --watch src/simple-response-benchmark.ts",
     "build": "bun build src/simple-response-benchmark.ts --target=bun --outdir=dist",
