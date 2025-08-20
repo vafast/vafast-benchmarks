@@ -29,6 +29,13 @@ interface PerformanceMetrics {
   maxLatency: number;
   p95Latency: number;
   testDuration: number;
+  errorRate: number;
+  memoryUsage?: {
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+    rss: number;
+  };
 }
 
 interface LatencyRecord {
@@ -114,6 +121,56 @@ class UniversalFrameworkTester {
   ];
 
   private serverProcesses: Map<string, ChildProcess> = new Map();
+  private gcIntervalId?: NodeJS.Timeout;
+
+  constructor() {
+    // 启用垃圾回收监控
+    this.enableMemoryManagement();
+  }
+
+  /**
+   * 启用内存管理和垃圾回收优化
+   */
+  private enableMemoryManagement(): void {
+    // 定期强制垃圾回收以减少内存占用
+    this.gcIntervalId = setInterval(() => {
+      if (global.gc) {
+        global.gc();
+        const memUsage = process.memoryUsage();
+        if (memUsage.heapUsed > 100 * 1024 * 1024) { // 超过100MB时发出警告
+          console.warn(`⚠️  高内存使用: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)}MB`);
+        }
+      }
+    }, 5000);
+
+    // 进程退出时清理资源
+    process.on('exit', () => this.cleanup());
+    process.on('SIGINT', () => this.cleanup());
+    process.on('SIGTERM', () => this.cleanup());
+  }
+
+  /**
+   * 获取当前内存使用情况
+   */
+  private getMemoryUsage() {
+    const usage = process.memoryUsage();
+    return {
+      heapUsed: Math.round(usage.heapUsed / 1024 / 1024 * 100) / 100, // MB
+      heapTotal: Math.round(usage.heapTotal / 1024 / 1024 * 100) / 100,
+      external: Math.round(usage.external / 1024 / 1024 * 100) / 100,
+      rss: Math.round(usage.rss / 1024 / 1024 * 100) / 100,
+    };
+  }
+
+  /**
+   * 清理资源
+   */
+  private async cleanup(): Promise<void> {
+    if (this.gcIntervalId) {
+      clearInterval(this.gcIntervalId);
+    }
+    await this.stopAllServers();
+  }
 
   /**
    * 检查框架是否存在并可用
@@ -131,6 +188,8 @@ class UniversalFrameworkTester {
     console.log(`🔄 启动 ${config.displayName} 服务器...`);
 
     const coldStartBegin = performance.now();
+    let checkAttempts = 0;
+    const maxAttempts = 250; // 25秒总超时
 
     return new Promise((resolve, reject) => {
       const serverProcess = spawn(config.startCommand[0], config.startCommand.slice(1), {
@@ -141,42 +200,56 @@ class UniversalFrameworkTester {
 
       this.serverProcesses.set(config.name, serverProcess);
 
-      const checkServerReady = () => {
-        const testEndpoint = this.commonTestEndpoints[0];
-        http
-          .get(`http://localhost:${config.port}${testEndpoint.path}`, (res) => {
-            if (res.statusCode === 200) {
-              const coldStartTime = performance.now() - coldStartBegin;
-              console.log(
-                `✅ ${config.displayName} 启动成功，冷启动时间: ${coldStartTime.toFixed(2)}ms`
-              );
-              resolve(coldStartTime);
-            }
-          })
-          .on("error", () => {
-            setTimeout(checkServerReady, 100);
-          });
+      const checkServerReady = async () => {
+        if (checkAttempts >= maxAttempts) {
+          serverProcess.kill('SIGTERM');
+          reject(new Error(`${config.displayName} 启动超时 (${maxAttempts/10}秒)`));
+          return;
+        }
+
+        checkAttempts++;
+        
+        try {
+          const testEndpoint = this.commonTestEndpoints[0];
+          const result = await this.sendHealthCheck(testEndpoint, config.port);
+          
+          if (result.success) {
+            const coldStartTime = performance.now() - coldStartBegin;
+            console.log(
+              `✅ ${config.displayName} 启动成功，冷启动时间: ${coldStartTime.toFixed(2)}ms (检查次数: ${checkAttempts})`
+            );
+            resolve(coldStartTime);
+            return;
+          }
+        } catch (error) {
+          // 忽略连接错误，继续重试
+        }
+
+        setTimeout(checkServerReady, 100);
       };
 
-      setTimeout(checkServerReady, 2000);
-
-      setTimeout(() => {
-        reject(new Error(`${config.displayName} 启动超时`));
-      }, 25000);
+      // 给服务器更多启动时间
+      setTimeout(checkServerReady, 1000);
 
       serverProcess.on("error", (error) => {
         reject(new Error(`${config.displayName} 启动失败: ${error.message}`));
+      });
+
+      // 监听进程退出
+      serverProcess.on("exit", (code) => {
+        if (code !== null && code !== 0) {
+          reject(new Error(`${config.displayName} 进程异常退出，退出码: ${code}`));
+        }
       });
     });
   }
 
   /**
-   * 发送HTTP请求并测量延迟
+   * 发送健康检查请求
    */
-  private async sendRequest(endpoint: TestEndpoint, port: number): Promise<LatencyRecord> {
+  private async sendHealthCheck(endpoint: TestEndpoint, port: number): Promise<LatencyRecord> {
     return new Promise((resolve) => {
       const startTime = performance.now();
-
       const requestBody = endpoint.body ? JSON.stringify(endpoint.body) : null;
 
       const options = {
@@ -186,9 +259,59 @@ class UniversalFrameworkTester {
         method: endpoint.method,
         headers: {
           "Content-Type": "application/json",
+          "Connection": "close",
+          ...(requestBody && { "Content-Length": Buffer.byteLength(requestBody) }),
+        },
+        timeout: 2000, // 健康检查超时时间更短
+      };
+
+      const req = http.request(options, (res) => {
+        res.on("data", () => {}); // 消费数据但不存储
+        res.on("end", () => {
+          const latency = performance.now() - startTime;
+          resolve({ latency, success: res.statusCode! >= 200 && res.statusCode! < 500 });
+        });
+      });
+
+      req.on("error", () => {
+        const latency = performance.now() - startTime;
+        resolve({ latency, success: false });
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        const latency = performance.now() - startTime;
+        resolve({ latency, success: false });
+      });
+
+      if (requestBody && endpoint.method === "POST") {
+        req.write(requestBody);
+      }
+
+      req.end();
+    });
+  }
+
+  /**
+   * 发送HTTP请求并测量延迟
+   */
+  private async sendRequest(endpoint: TestEndpoint, port: number): Promise<LatencyRecord> {
+    return new Promise((resolve) => {
+      const startTime = performance.now();
+      const requestBody = endpoint.body ? JSON.stringify(endpoint.body) : null;
+
+      const options = {
+        hostname: "localhost",
+        port: port,
+        path: endpoint.path,
+        method: endpoint.method,
+        headers: {
+          "Content-Type": "application/json",
+          "Connection": "keep-alive",
           ...(requestBody && { "Content-Length": Buffer.byteLength(requestBody) }),
         },
         timeout: 5000,
+        agent: false, // 禁用连接池以获得更准确的延迟测量
       };
 
       const req = http.request(options, (res) => {
@@ -231,6 +354,7 @@ class UniversalFrameworkTester {
     minLatency: number;
     maxLatency: number;
     p95Latency: number;
+    errorRate: number;
   }> {
     console.log(`🔥 开始 ${config.displayName} 性能测试 (${testDuration}秒)...`);
 
@@ -240,41 +364,114 @@ class UniversalFrameworkTester {
 
     let totalRequests = 0;
     let successRequests = 0;
+    let errorRequests = 0;
     const latencies: number[] = [];
-    const concurrency = 10;
+    const concurrency = 20; // 提高并发数
+
+    // 使用批量处理优化内存使用
+    const processBatch = async (batchResults: LatencyRecord[]) => {
+      batchResults.forEach(result => {
+        totalRequests++;
+        if (result.success) {
+          successRequests++;
+          latencies.push(result.latency);
+        } else {
+          errorRequests++;
+        }
+      });
+    };
 
     const sendConcurrentRequests = async () => {
+      const batchSize = 50;
+      let batch: Promise<LatencyRecord>[] = [];
+      
       while (performance.now() < endTime) {
-        try {
-          const endpoint =
-            this.commonTestEndpoints[Math.floor(Math.random() * this.commonTestEndpoints.length)];
-          const result = await this.sendRequest(endpoint, config.port);
-
-          totalRequests++;
-          if (result.success) {
-            successRequests++;
-            latencies.push(result.latency);
+        // 随机选择测试端点
+        const endpoint = this.commonTestEndpoints[
+          Math.floor(Math.random() * this.commonTestEndpoints.length)
+        ];
+        
+        batch.push(this.sendRequest(endpoint, config.port));
+        
+        // 当批量达到指定大小时处理
+        if (batch.length >= batchSize) {
+          try {
+            const results = await Promise.all(batch);
+            await processBatch(results);
+            batch = [];
+            
+            // 给系统一些喏息时间
+            if (totalRequests % 1000 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 1));
+            }
+          } catch (error) {
+            // 批量处理失败，逐个处理
+            for (const requestPromise of batch) {
+              try {
+                const result = await requestPromise;
+                await processBatch([result]);
+              } catch {
+                totalRequests++;
+                errorRequests++;
+              }
+            }
+            batch = [];
           }
+        }
+        
+        // 动态调整请求间隔以避免过载
+        const currentTime = performance.now();
+        const progress = (currentTime - startTime) / testDurationMs;
+        const delayMs = progress > 0.8 ? 2 : progress > 0.5 ? 1 : 0;
+        
+        if (delayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+      
+      // 处理剩余的请求
+      if (batch.length > 0) {
+        try {
+          const results = await Promise.all(batch);
+          await processBatch(results);
         } catch (error) {
-          totalRequests++;
+          for (const requestPromise of batch) {
+            try {
+              const result = await requestPromise;
+              await processBatch([result]);
+            } catch {
+              totalRequests++;
+              errorRequests++;
+            }
+          }
         }
       }
     };
 
-    const promises = Array.from({ length: concurrency }, () => sendConcurrentRequests());
-    await Promise.all(promises);
+    // 启动并发测试
+    const testPromises = Array.from({ length: concurrency }, () => sendConcurrentRequests());
+    
+    try {
+      await Promise.all(testPromises);
+    } catch (error) {
+      console.warn(`⚠️  ${config.displayName} 测试中出现部分错误: ${error}`);
+    }
 
     if (latencies.length === 0) {
       throw new Error(`${config.displayName} 测试失败：没有成功的请求`);
     }
 
+    // 计算指标
     latencies.sort((a, b) => a - b);
     const averageLatency = latencies.reduce((sum, lat) => sum + lat, 0) / latencies.length;
     const minLatency = latencies[0];
     const maxLatency = latencies[latencies.length - 1];
     const p95Latency = latencies[Math.floor(latencies.length * 0.95)];
+    const errorRate = totalRequests > 0 ? (errorRequests / totalRequests) * 100 : 0;
 
-    console.log(`📊 ${config.displayName} 完成 ${totalRequests} 个请求 (成功: ${successRequests})`);
+    console.log(
+      `📊 ${config.displayName} 完成 ${totalRequests} 个请求 (成功: ${successRequests}, 错误: ${errorRequests}, 错误率: ${errorRate.toFixed(2)}%)`
+    );
 
     return {
       totalRequests: successRequests,
@@ -282,31 +479,129 @@ class UniversalFrameworkTester {
       minLatency,
       maxLatency,
       p95Latency,
+      errorRate,
     };
   }
 
   /**
-   * 停止所有服务器
+   * 停止所有服务器（增强版本）
    */
   private async stopAllServers(): Promise<void> {
     console.log("🛑 停止所有服务器...");
 
-    for (const [name, process] of this.serverProcesses) {
-      if (process && !process.killed) {
+    const stopPromises = Array.from(this.serverProcesses.entries()).map(async ([name, process]) => {
+      if (!process || process.killed) return;
+      
+      try {
+        // 优雅停止
         process.kill("SIGTERM");
+        
+        // 等待进程正常退出
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            console.warn(`⚠️  ${name} 优雅停止超时，强制终止`);
+            if (!process.killed) {
+              process.kill("SIGKILL");
+            }
+            resolve(void 0);
+          }, 3000);
+          
+          process.on("exit", () => {
+            clearTimeout(timeout);
+            resolve(void 0);
+          });
+          
+          process.on("error", () => {
+            clearTimeout(timeout);
+            resolve(void 0);
+          });
+        });
+        
+      } catch (error) {
+        console.warn(`⚠️  停止 ${name} 时出错:`, error);
+        // 强制终止
+        if (!process.killed) {
+          try {
+            process.kill("SIGKILL");
+          } catch (killError) {
+            console.warn(`⚠️  强制终止 ${name} 失败:`, killError);
+          }
+        }
       }
-    }
+    });
 
+    await Promise.allSettled(stopPromises);
     this.serverProcesses.clear();
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    
+    // 额外等待，确保端口释放
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   /**
-   * 测试单个框架
+   * 清理指定框架的资源
+   */
+  private async cleanupFramework(frameworkName: string): Promise<void> {
+    const serverProcess = this.serverProcesses.get(frameworkName);
+    if (serverProcess && !serverProcess.killed) {
+      return new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          try {
+            serverProcess.kill('SIGKILL');
+          } catch (error) {
+            console.warn(`无法强制终止 ${frameworkName}: ${error}`);
+          }
+          resolve();
+        }, 2000);
+        
+        serverProcess.on('exit', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        
+        try {
+          serverProcess.kill('SIGTERM');
+        } catch (error) {
+          clearTimeout(timeout);
+          console.warn(`终止 ${frameworkName} 时出错: ${error}`);
+          resolve();
+        }
+      });
+    }
+    
+    this.serverProcesses.delete(frameworkName);
+    // 给系统一些清理时间
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  /**
+   * 预热测试
+   */
+  private async warmupTest(config: FrameworkConfig): Promise<void> {
+    console.log(`🔥 正在对 ${config.displayName} 进行预热...`);
+    
+    const warmupRequests = 10;
+    const warmupPromises: Promise<LatencyRecord>[] = [];
+    
+    for (let i = 0; i < warmupRequests; i++) {
+      const endpoint = this.commonTestEndpoints[i % this.commonTestEndpoints.length];
+      warmupPromises.push(this.sendRequest(endpoint, config.port));
+    }
+    
+    try {
+      await Promise.all(warmupPromises);
+      console.log(`✅ ${config.displayName} 预热完成`);
+    } catch (error) {
+      console.warn(`⚠️  ${config.displayName} 预热时出现部分错误: ${error}`);
+    }
+  }
+
+  /**
+   * 测试单个框架（增强错误处理版本）
    */
   async testFramework(
     frameworkName: string,
-    testDuration: number = 10
+    testDuration: number = 10,
+    maxRetries: number = 2
   ): Promise<PerformanceMetrics | null> {
     const config = this.frameworkConfigs.find((c) => c.name === frameworkName);
     if (!config) {
@@ -319,31 +614,87 @@ class UniversalFrameworkTester {
       return null;
     }
 
-    try {
-      const coldStartTime = await this.startFrameworkServer(config);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    let lastError: Error | null = null;
 
-      const testStart = performance.now();
-      const testResults = await this.runPerformanceTest(config, testDuration);
-      const actualTestDuration = performance.now() - testStart;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 ${config.displayName} 测试尝试 ${attempt}/${maxRetries}`);
+        
+        // 清理之前可能的残留进程
+        const existingProcess = this.serverProcesses.get(config.name);
+        if (existingProcess && !existingProcess.killed) {
+          existingProcess.kill("SIGKILL");
+          this.serverProcesses.delete(config.name);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
 
-      const requestsPerSecond = testResults.totalRequests / (actualTestDuration / 1000);
+        const coldStartTime = await this.startFrameworkServer(config);
+        
+        // 等待服务器完全就绪
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        
+        // 执行预热请求
+        try {
+          const warmupEndpoint = this.commonTestEndpoints[0];
+          await this.sendRequest(warmupEndpoint, config.port);
+          console.log(`🔥 ${config.displayName} 预热完成`);
+        } catch (warmupError) {
+          console.warn(`⚠️  ${config.displayName} 预热失败，继续测试`);
+        }
 
-      return {
-        framework: config.displayName,
-        coldStartTime,
-        totalRequests: testResults.totalRequests,
-        requestsPerSecond,
-        averageLatency: testResults.averageLatency,
-        minLatency: testResults.minLatency,
-        maxLatency: testResults.maxLatency,
-        p95Latency: testResults.p95Latency,
-        testDuration: actualTestDuration,
-      };
-    } catch (error) {
-      console.error(`❌ ${config.displayName} 测试失败:`, error);
-      return null;
+        const testStart = performance.now();
+        const testResults = await this.runPerformanceTest(config, testDuration);
+        const actualTestDuration = performance.now() - testStart;
+
+        const requestsPerSecond = testResults.totalRequests / (actualTestDuration / 1000);
+
+        // 验证测试结果合理性
+        if (testResults.totalRequests < 10) {
+          throw new Error(`测试请求数过少: ${testResults.totalRequests}`);
+        }
+
+        if (testResults.errorRate > 50) {
+          throw new Error(`错误率过高: ${testResults.errorRate.toFixed(2)}%`);
+        }
+
+        return {
+          framework: config.displayName,
+          coldStartTime,
+          totalRequests: testResults.totalRequests,
+          requestsPerSecond,
+          averageLatency: testResults.averageLatency,
+          minLatency: testResults.minLatency,
+          maxLatency: testResults.maxLatency,
+          p95Latency: testResults.p95Latency,
+          testDuration: actualTestDuration,
+          errorRate: testResults.errorRate,
+          memoryUsage: this.getMemoryUsage(),
+        };
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`❌ ${config.displayName} 测试尝试 ${attempt} 失败:`, error);
+        
+        // 清理失败的进程
+        const process = this.serverProcesses.get(config.name);
+        if (process && !process.killed) {
+          try {
+            process.kill("SIGKILL");
+          } catch (killError) {
+            console.warn(`⚠️  清理进程失败:`, killError);
+          }
+        }
+        this.serverProcesses.delete(config.name);
+
+        if (attempt < maxRetries) {
+          const backoffTime = attempt * 2000; // 指数退避
+          console.log(`⏳ 等待 ${backoffTime}ms 后重试...`);
+          await new Promise((resolve) => setTimeout(resolve, backoffTime));
+        }
+      }
     }
+
+    console.error(`❌ ${config.displayName} 所有尝试均失败，最后错误:`, lastError?.message);
+    return null;
   }
 
   /**
@@ -405,6 +756,7 @@ class UniversalFrameworkTester {
       `   📊  延迟范围:       ${result.minLatency.toFixed(2)} - ${result.maxLatency.toFixed(2)} ms`
     );
     console.log(`   🎯  P95延迟:        ${result.p95Latency.toFixed(2)} ms`);
+    console.log(`   ❌  错误率:         ${result.errorRate.toFixed(2)}%`);
   }
 
   /**
