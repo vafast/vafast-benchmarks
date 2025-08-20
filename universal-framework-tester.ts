@@ -137,16 +137,17 @@ class UniversalFrameworkTester {
       if (global.gc) {
         global.gc();
         const memUsage = process.memoryUsage();
-        if (memUsage.heapUsed > 100 * 1024 * 1024) { // 超过100MB时发出警告
+        if (memUsage.heapUsed > 100 * 1024 * 1024) {
+          // 超过100MB时发出警告
           console.warn(`⚠️  高内存使用: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)}MB`);
         }
       }
     }, 5000);
 
     // 进程退出时清理资源
-    process.on('exit', () => this.cleanup());
-    process.on('SIGINT', () => this.cleanup());
-    process.on('SIGTERM', () => this.cleanup());
+    process.on("exit", () => this.cleanup());
+    process.on("SIGINT", () => this.cleanup());
+    process.on("SIGTERM", () => this.cleanup());
   }
 
   /**
@@ -155,10 +156,10 @@ class UniversalFrameworkTester {
   private getMemoryUsage() {
     const usage = process.memoryUsage();
     return {
-      heapUsed: Math.round(usage.heapUsed / 1024 / 1024 * 100) / 100, // MB
-      heapTotal: Math.round(usage.heapTotal / 1024 / 1024 * 100) / 100,
-      external: Math.round(usage.external / 1024 / 1024 * 100) / 100,
-      rss: Math.round(usage.rss / 1024 / 1024 * 100) / 100,
+      heapUsed: Math.round((usage.heapUsed / 1024 / 1024) * 100) / 100, // MB
+      heapTotal: Math.round((usage.heapTotal / 1024 / 1024) * 100) / 100,
+      external: Math.round((usage.external / 1024 / 1024) * 100) / 100,
+      rss: Math.round((usage.rss / 1024 / 1024) * 100) / 100,
     };
   }
 
@@ -202,21 +203,23 @@ class UniversalFrameworkTester {
 
       const checkServerReady = async () => {
         if (checkAttempts >= maxAttempts) {
-          serverProcess.kill('SIGTERM');
-          reject(new Error(`${config.displayName} 启动超时 (${maxAttempts/10}秒)`));
+          serverProcess.kill("SIGTERM");
+          reject(new Error(`${config.displayName} 启动超时 (${maxAttempts / 10}秒)`));
           return;
         }
 
         checkAttempts++;
-        
+
         try {
           const testEndpoint = this.commonTestEndpoints[0];
           const result = await this.sendHealthCheck(testEndpoint, config.port);
-          
+
           if (result.success) {
             const coldStartTime = performance.now() - coldStartBegin;
             console.log(
-              `✅ ${config.displayName} 启动成功，冷启动时间: ${coldStartTime.toFixed(2)}ms (检查次数: ${checkAttempts})`
+              `✅ ${config.displayName} 启动成功，冷启动时间: ${coldStartTime.toFixed(
+                2
+              )}ms (检查次数: ${checkAttempts})`
             );
             resolve(coldStartTime);
             return;
@@ -259,7 +262,7 @@ class UniversalFrameworkTester {
         method: endpoint.method,
         headers: {
           "Content-Type": "application/json",
-          "Connection": "close",
+          Connection: "close",
           ...(requestBody && { "Content-Length": Buffer.byteLength(requestBody) }),
         },
         timeout: 2000, // 健康检查超时时间更短
@@ -307,7 +310,7 @@ class UniversalFrameworkTester {
         method: endpoint.method,
         headers: {
           "Content-Type": "application/json",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
           ...(requestBody && { "Content-Length": Buffer.byteLength(requestBody) }),
         },
         timeout: 5000,
@@ -370,7 +373,7 @@ class UniversalFrameworkTester {
 
     // 使用批量处理优化内存使用
     const processBatch = async (batchResults: LatencyRecord[]) => {
-      batchResults.forEach(result => {
+      batchResults.forEach((result) => {
         totalRequests++;
         if (result.success) {
           successRequests++;
@@ -384,25 +387,24 @@ class UniversalFrameworkTester {
     const sendConcurrentRequests = async () => {
       const batchSize = 50;
       let batch: Promise<LatencyRecord>[] = [];
-      
+
       while (performance.now() < endTime) {
         // 随机选择测试端点
-        const endpoint = this.commonTestEndpoints[
-          Math.floor(Math.random() * this.commonTestEndpoints.length)
-        ];
-        
+        const endpoint =
+          this.commonTestEndpoints[Math.floor(Math.random() * this.commonTestEndpoints.length)];
+
         batch.push(this.sendRequest(endpoint, config.port));
-        
+
         // 当批量达到指定大小时处理
         if (batch.length >= batchSize) {
           try {
             const results = await Promise.all(batch);
             await processBatch(results);
             batch = [];
-            
+
             // 给系统一些喏息时间
             if (totalRequests % 1000 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 1));
+              await new Promise((resolve) => setTimeout(resolve, 1));
             }
           } catch (error) {
             // 批量处理失败，逐个处理
@@ -418,17 +420,17 @@ class UniversalFrameworkTester {
             batch = [];
           }
         }
-        
+
         // 动态调整请求间隔以避免过载
         const currentTime = performance.now();
         const progress = (currentTime - startTime) / testDurationMs;
         const delayMs = progress > 0.8 ? 2 : progress > 0.5 ? 1 : 0;
-        
+
         if (delayMs > 0) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
       }
-      
+
       // 处理剩余的请求
       if (batch.length > 0) {
         try {
@@ -450,7 +452,7 @@ class UniversalFrameworkTester {
 
     // 启动并发测试
     const testPromises = Array.from({ length: concurrency }, () => sendConcurrentRequests());
-    
+
     try {
       await Promise.all(testPromises);
     } catch (error) {
@@ -470,7 +472,11 @@ class UniversalFrameworkTester {
     const errorRate = totalRequests > 0 ? (errorRequests / totalRequests) * 100 : 0;
 
     console.log(
-      `📊 ${config.displayName} 完成 ${totalRequests} 个请求 (成功: ${successRequests}, 错误: ${errorRequests}, 错误率: ${errorRate.toFixed(2)}%)`
+      `📊 ${
+        config.displayName
+      } 完成 ${totalRequests} 个请求 (成功: ${successRequests}, 错误: ${errorRequests}, 错误率: ${errorRate.toFixed(
+        2
+      )}%)`
     );
 
     return {
@@ -486,43 +492,50 @@ class UniversalFrameworkTester {
   /**
    * 停止所有服务器（增强版本）
    */
-  private async stopAllServers(): Promise<void> {
+  public async stopAllServers(): Promise<void> {
     console.log("🛑 停止所有服务器...");
 
     const stopPromises = Array.from(this.serverProcesses.entries()).map(async ([name, process]) => {
       if (!process || process.killed) return;
-      
+
       try {
         // 优雅停止
         process.kill("SIGTERM");
-        
+
         // 等待进程正常退出
         await new Promise<void>((resolve) => {
           const timeout = setTimeout(() => {
             console.warn(`⚠️  ${name} 优雅停止超时，强制终止`);
             if (!process.killed) {
-              process.kill("SIGKILL");
+              try {
+                process.kill("SIGKILL");
+                console.log(`🔨 ${name} 已被强制终止`);
+              } catch (killError) {
+                console.warn(`⚠️  强制终止 ${name} 失败:`, killError);
+              }
             }
-            resolve(void 0);
-          }, 3000);
-          
+            resolve();
+          }, 5000); // 增加超时时间到5秒
+
           process.on("exit", () => {
             clearTimeout(timeout);
-            resolve(void 0);
+            console.log(`✅ ${name} 已正常退出`);
+            resolve();
           });
-          
+
           process.on("error", () => {
             clearTimeout(timeout);
-            resolve(void 0);
+            console.warn(`⚠️  ${name} 进程错误`);
+            resolve();
           });
         });
-        
       } catch (error) {
         console.warn(`⚠️  停止 ${name} 时出错:`, error);
         // 强制终止
         if (!process.killed) {
           try {
             process.kill("SIGKILL");
+            console.log(`🔨 ${name} 已被强制终止`);
           } catch (killError) {
             console.warn(`⚠️  强制终止 ${name} 失败:`, killError);
           }
@@ -532,9 +545,66 @@ class UniversalFrameworkTester {
 
     await Promise.allSettled(stopPromises);
     this.serverProcesses.clear();
-    
+
     // 额外等待，确保端口释放
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // 强制清理可能残留的进程
+    await this.forceCleanupProcesses();
+
+    console.log("✅ 所有服务器已停止");
+  }
+
+  /**
+   * 强制清理可能残留的进程
+   */
+  private async forceCleanupProcesses(): Promise<void> {
+    try {
+      // 在 macOS 上使用 ps 和 kill 命令强制清理
+      const { exec } = require("child_process");
+      const util = require("util");
+      const execAsync = util.promisify(exec);
+
+      // 查找可能残留的 bun 进程
+      const { stdout: bunProcesses } = await execAsync(
+        "ps aux | grep 'bun.*src/index.ts' | grep -v grep | awk '{print $2}'"
+      );
+      if (bunProcesses.trim()) {
+        console.log("🔍 发现残留的 bun 进程，正在清理...");
+        const pids = bunProcesses.trim().split("\n");
+        for (const pid of pids) {
+          if (pid) {
+            try {
+              await execAsync(`kill -9 ${pid}`);
+              console.log(`✅ 已终止进程 ${pid}`);
+            } catch (error) {
+              console.warn(`⚠️  终止进程 ${pid} 失败:`, error.message);
+            }
+          }
+        }
+      }
+
+      // 查找可能残留的 node 进程
+      const { stdout: nodeProcesses } = await execAsync(
+        "ps aux | grep 'node.*universal-framework-tester' | grep -v grep | awk '{print $2}'"
+      );
+      if (nodeProcesses.trim()) {
+        console.log("🔍 发现残留的 node 进程，正在清理...");
+        const pids = nodeProcesses.trim().split("\n");
+        for (const pid of pids) {
+          if (pid) {
+            try {
+              await execAsync(`kill -9 ${pid}`);
+              console.log(`✅ 已终止进程 ${pid}`);
+            } catch (error) {
+              console.warn(`⚠️  终止进程 ${pid} 失败:`, error.message);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("⚠️  强制清理进程时出错:", error.message);
+    }
   }
 
   /**
@@ -546,20 +616,20 @@ class UniversalFrameworkTester {
       return new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
           try {
-            serverProcess.kill('SIGKILL');
+            serverProcess.kill("SIGKILL");
           } catch (error) {
             console.warn(`无法强制终止 ${frameworkName}: ${error}`);
           }
           resolve();
         }, 2000);
-        
-        serverProcess.on('exit', () => {
+
+        serverProcess.on("exit", () => {
           clearTimeout(timeout);
           resolve();
         });
-        
+
         try {
-          serverProcess.kill('SIGTERM');
+          serverProcess.kill("SIGTERM");
         } catch (error) {
           clearTimeout(timeout);
           console.warn(`终止 ${frameworkName} 时出错: ${error}`);
@@ -567,7 +637,7 @@ class UniversalFrameworkTester {
         }
       });
     }
-    
+
     this.serverProcesses.delete(frameworkName);
     // 给系统一些清理时间
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -578,15 +648,15 @@ class UniversalFrameworkTester {
    */
   private async warmupTest(config: FrameworkConfig): Promise<void> {
     console.log(`🔥 正在对 ${config.displayName} 进行预热...`);
-    
+
     const warmupRequests = 10;
     const warmupPromises: Promise<LatencyRecord>[] = [];
-    
+
     for (let i = 0; i < warmupRequests; i++) {
       const endpoint = this.commonTestEndpoints[i % this.commonTestEndpoints.length];
       warmupPromises.push(this.sendRequest(endpoint, config.port));
     }
-    
+
     try {
       await Promise.all(warmupPromises);
       console.log(`✅ ${config.displayName} 预热完成`);
@@ -619,7 +689,7 @@ class UniversalFrameworkTester {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`🔄 ${config.displayName} 测试尝试 ${attempt}/${maxRetries}`);
-        
+
         // 清理之前可能的残留进程
         const existingProcess = this.serverProcesses.get(config.name);
         if (existingProcess && !existingProcess.killed) {
@@ -629,10 +699,10 @@ class UniversalFrameworkTester {
         }
 
         const coldStartTime = await this.startFrameworkServer(config);
-        
+
         // 等待服务器完全就绪
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        
+
         // 执行预热请求
         try {
           const warmupEndpoint = this.commonTestEndpoints[0];
@@ -673,7 +743,7 @@ class UniversalFrameworkTester {
       } catch (error) {
         lastError = error as Error;
         console.error(`❌ ${config.displayName} 测试尝试 ${attempt} 失败:`, error);
-        
+
         // 清理失败的进程
         const process = this.serverProcesses.get(config.name);
         if (process && !process.killed) {
@@ -731,13 +801,13 @@ class UniversalFrameworkTester {
         this.printFrameworkResult(result);
       }
 
-      const serverProcess = this.serverProcesses.get(config.name);
-      if (serverProcess) {
-        serverProcess.kill("SIGTERM");
-        this.serverProcesses.delete(config.name);
-      }
+      // 增强的框架清理
+      console.log(`🧹 清理 ${config.displayName} 资源...`);
+      await this.cleanupFramework(config.name);
+      console.log(`✅ ${config.displayName} 资源清理完成`);
 
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // 等待更长时间确保端口完全释放
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
     return results;
