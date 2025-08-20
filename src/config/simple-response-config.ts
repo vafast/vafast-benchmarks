@@ -102,23 +102,24 @@ export async function handleExpressRequest(req: Request): Promise<Response> {
     },
   } as any;
 
-  // 调用 Express 路由处理器
-  const route = expressApp._router.stack.find(
-    (layer: any) =>
-      layer.route &&
-      layer.route.path === url.pathname &&
-      layer.route.methods[req.method.toLowerCase()]
-  );
+  // 调用 Express 路由处理器 - 使用更兼容的方式
+  try {
+    // 直接调用 expressApp 处理请求
+    await new Promise<void>((resolve, reject) => {
+      expressApp(expressReq, expressRes, (err: any) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
-  if (route) {
-    route.handle(expressReq, expressRes, () => {});
     return new Response(expressRes.body, {
       status: expressRes.statusCode,
       headers: expressRes.headers,
     });
+  } catch (error) {
+    // 如果出错，返回错误响应
+    return new Response("Internal Server Error", { status: 500 });
   }
-
-  return new Response("Not Found", { status: 404 });
 }
 
 // 5. vafast 原生 - 直接路由

@@ -86,10 +86,18 @@ async function runValidatorBenchmark(): Promise<TestResult[]> {
         },
       } as any;
 
-      // 调用真实的 Express 应用
-      expressValidatorApp._router.stack
-        .find((layer: any) => layer.route && layer.route.path === "/" && layer.route.methods.post)
-        ?.handle(expressReq, expressRes, () => {});
+      // 调用真实的 Express 应用 - 使用兼容的方式
+      try {
+        await new Promise<void>((resolve, reject) => {
+          expressValidatorApp(expressReq, expressRes, (err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      } catch (error) {
+        expressRes.statusCode = 500;
+        expressRes.body = "Internal Server Error";
+      }
 
       return new Response(expressRes.body, {
         status: expressRes.statusCode,
