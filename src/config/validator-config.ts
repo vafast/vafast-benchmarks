@@ -100,10 +100,10 @@ export const expressValidatorApp = express();
 expressValidatorApp.use(express.json());
 
 // 预编译：避免每次请求重复编译 TypeBox 校验器
-const expressBodyValidator = TypeCompiler.Compile(TestSchema);
 
 expressValidatorApp.post("/", (req, res) => {
   try {
+    const expressBodyValidator = TypeCompiler.Compile(TestSchema);
     const bodyValid = expressBodyValidator.Check(req.body);
     if (!bodyValid) {
       const bodyErrors = expressBodyValidator.Errors(req.body);
