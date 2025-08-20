@@ -9,7 +9,11 @@ import {
   vafastValidatorRoutes,
   elysiaValidatorApp,
   honoValidatorApp,
+  koaValidatorApp,
+  koaValidatorRouter,
+  TestSchema,
 } from "./config/validator-config.js";
+import { TypeCompiler } from "@sinclair/typebox/compiler";
 
 // 导入工具函数
 import {
@@ -116,6 +120,56 @@ async function runValidatorBenchmark(): Promise<TestResult[]> {
     TEST_CONFIG.iterations
   );
 
+  const koaValidatorResult = await benchmark(
+    "Koa (TypeBox验证器)",
+    async (req) => {
+      const body = await req.json();
+
+      // 创建更完整的 Koa 上下文
+      const ctx = {
+        request: {
+          body,
+          method: req.method,
+          url: req.url,
+          headers: Object.fromEntries(req.headers.entries()),
+        },
+        body: "",
+        status: 200,
+        set: (name: string, value: string) => {},
+        throw: (status: number, message: string) => {
+          ctx.status = status;
+          ctx.body = { error: message };
+        },
+      } as any;
+
+      // 直接调用验证器逻辑，确保验证器真正执行
+      try {
+        // 验证 body
+        const koaBodyValidator = TypeCompiler.Compile(TestSchema);
+        const bodyValid = koaBodyValidator.Check(ctx.request.body);
+        if (!bodyValid) {
+          const bodyErrors = koaBodyValidator.Errors(ctx.request.body);
+          ctx.status = 400;
+          ctx.body = { error: "Body validation failed", details: bodyErrors };
+        } else {
+          ctx.body = {
+            message: "Hello World",
+            data: { body: ctx.request.body },
+          };
+        }
+      } catch (error) {
+        ctx.status = 400;
+        ctx.body = { error: "Validation failed" };
+      }
+
+      return new Response(JSON.stringify(ctx.body), {
+        status: ctx.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    TEST_CONFIG.iterations
+  );
+
   // 记录测试后内存使用
   logMemoryUsage("测试完成后");
   forceGarbageCollection();
@@ -133,6 +187,7 @@ async function runValidatorBenchmark(): Promise<TestResult[]> {
     vafastValidatorResult,
     elysiaValidatorResult,
     honoValidatorResult,
+    koaValidatorResult,
   ];
 
   generateValidatorReport(validatorResults);

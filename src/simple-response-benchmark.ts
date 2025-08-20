@@ -9,6 +9,7 @@ import {
   elysiaApp,
   honoApp,
   handleExpressRequest,
+  handleKoaRequest,
   vafastRoutesDirect,
   vafastRoutesFactory,
 } from "./config/simple-response-config.js";
@@ -71,6 +72,8 @@ async function runSimpleResponseBenchmark(): Promise<TestResult[]> {
 
   const expressResult = await benchmark("Express", handleExpressRequest);
 
+  const koaResult = await benchmark("Koa", handleKoaRequest);
+
   const vafastDirectResult = await benchmark("vafast原生 (直接路由)", async () => {
     const route = vafastRoutesDirect[0]!;
     return await route.handler();
@@ -100,6 +103,7 @@ async function runSimpleResponseBenchmark(): Promise<TestResult[]> {
     elysiaResult,
     honoResult,
     expressResult,
+    koaResult,
   ];
 
   generateSimpleResponseReport(simpleResults);

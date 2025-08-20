@@ -6,6 +6,9 @@ import { Elysia } from "elysia";
 import { Hono } from "hono";
 import { createRouteHandler } from "vafast";
 import express from "express";
+import Koa from "koa";
+import Router from "@koa/router";
+import bodyParser from "koa-bodyparser";
 
 // ============================================================================
 // 简单响应测试配置
@@ -35,6 +38,37 @@ expressApp.use(express.json());
 expressApp.post("/", (req, res) => {
   res.json({ message: simpleMessage, data: req.body });
 });
+
+// 5. Koa 框架
+export const koaApp = new Koa();
+const koaRouter = new Router();
+koaApp.use(bodyParser());
+koaRouter.post("/", async (ctx) => {
+  ctx.body = { message: simpleMessage, data: (ctx.request as any).body };
+});
+koaApp.use(koaRouter.routes());
+koaApp.use(koaRouter.allowedMethods());
+
+// Koa 请求处理函数
+export async function handleKoaRequest(req: Request): Promise<Response> {
+  const body = await req.json();
+
+  // 创建模拟的 Koa 上下文
+  const ctx = {
+    request: { body },
+    body: "",
+    status: 200,
+    set: (name: string, value: string) => {},
+  } as any;
+
+  // 直接调用路由处理器
+  await koaRouter.routes()(ctx, async () => {});
+
+  return new Response(JSON.stringify(ctx.body), {
+    status: ctx.status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 // Express 请求处理函数 - 修复：直接使用expressApp处理请求
 export async function handleExpressRequest(req: Request): Promise<Response> {

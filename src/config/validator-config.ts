@@ -9,6 +9,9 @@ import { createRouteHandler } from "vafast";
 import { Type } from "@sinclair/typebox";
 import express from "express";
 import { TypeCompiler } from "@sinclair/typebox/compiler";
+import Koa from "koa";
+import Router from "@koa/router";
+import bodyParser from "koa-bodyparser";
 
 // ============================================================================
 // 复杂验证器测试配置
@@ -92,3 +95,37 @@ expressValidatorApp.post("/", (req, res) => {
     res.status(400).json({ error: "Validation failed" });
   }
 });
+
+// Koa 验证器应用
+export const koaValidatorApp = new Koa();
+const koaValidatorRouter = new Router();
+koaValidatorApp.use(bodyParser());
+
+koaValidatorRouter.post("/", async (ctx) => {
+  try {
+    // 验证 body
+    const koaBodyValidator = TypeCompiler.Compile(TestSchema);
+    const requestBody = (ctx.request as any).body;
+    const bodyValid = koaBodyValidator.Check(requestBody);
+    if (!bodyValid) {
+      const bodyErrors = koaBodyValidator.Errors(requestBody);
+      ctx.status = 400;
+      ctx.body = { error: "Body validation failed", details: bodyErrors };
+      return;
+    }
+
+    ctx.body = {
+      message: "Hello World",
+      data: { body: requestBody },
+    };
+  } catch (error) {
+    ctx.status = 400;
+    ctx.body = { error: "Validation failed" };
+  }
+});
+
+koaValidatorApp.use(koaValidatorRouter.routes());
+koaValidatorApp.use(koaValidatorRouter.allowedMethods());
+
+// 导出路由供测试使用
+export { koaValidatorRouter };
