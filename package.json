@@ -5,9 +5,11 @@
   "main": "comprehensive-benchmark.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run comprehensive-benchmark.ts",
-    "dev": "bun --watch comprehensive-benchmark.ts",
-    "build": "bun build comprehensive-benchmark.ts --target=bun --outdir=dist",
+    "start": "bun run src/simple-response-benchmark.ts",
+    "benchmark:simple": "bun run src/simple-response-benchmark.ts",
+    "benchmark:validator": "bun run src/validator-benchmark.ts",
+    "dev": "bun --watch src/simple-response-benchmark.ts",
+    "build": "bun build src/simple-response-benchmark.ts --target=bun --outdir=dist",
     "test": "bun test"
   },
   "dependencies": {
