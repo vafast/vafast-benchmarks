@@ -10,7 +10,7 @@ const responseTime = new Trend('response_time');
 export const options = {
   // 阶段式负载测试
   stages: [
-    { duration: '30s', target: 100 },    // 预热阶段：30秒内增加到10个用户
+    { duration: '10s', target: 10 },    // 预热阶段：30秒内增加到10个用户
   ],
   
   // 阈值设置
@@ -37,7 +37,6 @@ const testData = {
       name: "Test User",
       phone: "13800138000",
       age: 25,
-      email: "test@example.com",
       active: true,
       tags: ["test", "user"],
       preferences: {

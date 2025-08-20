@@ -91,14 +91,15 @@ class K6BenchmarkRunner {
       server.stdout?.on("data", (data) => {
         output += data.toString();
         // 检查多种可能的启动成功标识
-        if (!started && (
-          output.includes("Server running") || 
-          output.includes("listening") ||
-          output.includes("running at") ||
-          output.includes("🦊 Elysia is running") ||
-          output.includes("Server started") ||
-          output.includes("Ready")
-        )) {
+        if (
+          !started &&
+          (output.includes("Server running") ||
+            output.includes("listening") ||
+            output.includes("running at") ||
+            output.includes("🦊 Elysia is running") ||
+            output.includes("Server started") ||
+            output.includes("Ready"))
+        ) {
           started = true;
           console.log(`✅ ${config.displayName} 服务器已启动 (端口: ${config.port})`);
           resolve(true);
