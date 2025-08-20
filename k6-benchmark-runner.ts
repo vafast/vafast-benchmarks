@@ -3,14 +3,7 @@ import { performance } from "perf_hooks";
 import * as http from "http";
 import { existsSync } from "fs";
 import { join } from "path";
-
-interface FrameworkConfig {
-  name: string;
-  displayName: string;
-  directory: string;
-  startCommand: string[];
-  port: number;
-}
+import ServerManager from "./start-servers";
 
 interface K6TestResult {
   framework: string;
@@ -26,147 +19,10 @@ interface K6TestResult {
 }
 
 class K6BenchmarkRunner {
-  private readonly frameworkConfigs: FrameworkConfig[] = [
-    {
-      name: "elysia",
-      displayName: "Elysia",
-      directory: "frameworks/elysia",
-      startCommand: ["bun", "run", "src/index.ts"],
-      port: 3000,
-    },
-    {
-      name: "hono",
-      displayName: "Hono",
-      directory: "frameworks/hono",
-      startCommand: ["bun", "run", "src/index.ts"],
-      port: 3001,
-    },
-    {
-      name: "express",
-      displayName: "Express",
-      directory: "frameworks/express",
-      startCommand: ["bun", "run", "src/index.ts"],
-      port: 3002,
-    },
-    {
-      name: "koa",
-      displayName: "Koa",
-      directory: "frameworks/koa",
-      startCommand: ["bun", "run", "src/index.ts"],
-      port: 3003,
-    },
-    {
-      name: "vafast",
-      displayName: "Vafast",
-      directory: "frameworks/vafast",
-      startCommand: ["bun", "run", "src/index.ts"],
-      port: 3004,
-    },
-    {
-      name: "vafast-mini",
-      displayName: "Vafast-Mini",
-      directory: "frameworks/vafast-mini",
-      startCommand: ["bun", "run", "src/index.ts"],
-      port: 3005,
-    },
-  ];
+  private serverManager: ServerManager;
 
-  private servers: Map<string, ChildProcess> = new Map();
-
-  /**
-   * 启动框架服务器
-   */
-  private async startFrameworkServer(config: FrameworkConfig): Promise<boolean> {
-    return new Promise((resolve) => {
-      console.log(`🚀 启动 ${config.displayName} 服务器...`);
-
-      const server = spawn(config.startCommand[0], config.startCommand.slice(1), {
-        cwd: config.directory,
-        stdio: "pipe",
-      });
-
-      let output = "";
-      let started = false;
-
-      server.stdout?.on("data", (data) => {
-        output += data.toString();
-        // 检查多种可能的启动成功标识
-        if (
-          !started &&
-          (output.includes("Server running") ||
-            output.includes("listening") ||
-            output.includes("running at") ||
-            output.includes("🦊 Elysia is running") ||
-            output.includes("Server started") ||
-            output.includes("Ready"))
-        ) {
-          started = true;
-          console.log(`✅ ${config.displayName} 服务器已启动 (端口: ${config.port})`);
-          resolve(true);
-        }
-      });
-
-      server.stderr?.on("data", (data) => {
-        output += data.toString();
-      });
-
-      server.on("error", (error) => {
-        console.error(`❌ ${config.displayName} 启动失败:`, error.message);
-        resolve(false);
-      });
-
-      // 超时处理 - 增加超时时间到 20 秒
-      setTimeout(() => {
-        if (!started) {
-          console.error(`⏰ ${config.displayName} 启动超时 (20秒)`);
-          server.kill();
-          resolve(false);
-        }
-      }, 20000);
-
-      this.servers.set(config.name, server);
-    });
-  }
-
-  /**
-   * 等待服务器就绪
-   */
-  private async waitForServerReady(port: number, timeout: number = 30000): Promise<boolean> {
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < timeout) {
-      try {
-        const response = await this.makeRequest(`http://localhost:${port}/techempower/json`);
-        if (response.status === 200) {
-          return true;
-        }
-      } catch (error) {
-        // 服务器还未就绪，继续等待
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    return false;
-  }
-
-  /**
-   * 发送 HTTP 请求
-   */
-  private async makeRequest(url: string): Promise<{ status: number; body: string }> {
-    return new Promise((resolve, reject) => {
-      const req = http.get(url, (res) => {
-        let body = "";
-        res.on("data", (chunk) => (body += chunk));
-        res.on("end", () => resolve({ status: res.statusCode || 0, body }));
-      });
-
-      req.on("error", reject);
-      req.setTimeout(5000, () => {
-        req.destroy();
-        reject(new Error("Request timeout"));
-      });
-    });
+  constructor() {
+    this.serverManager = new ServerManager();
   }
 
   /**
@@ -186,7 +42,12 @@ class K6BenchmarkRunner {
       };
 
       // 运行 k6 测试
-      const k6Process = spawn("k6", ["run", "k6-test-config.js"], {
+      const k6Process = spawn("k6", [
+        "run", 
+        "--out", `json=test-results/k6-${framework}-results.json`,
+        "--out", `csv=test-results/k6-${framework}-results.csv`,
+        "k6-test-config.js"
+      ], {
         env,
         stdio: "pipe",
       });
@@ -259,30 +120,45 @@ class K6BenchmarkRunner {
       let errorRate = 0;
 
       for (const line of lines) {
-        if (line.includes("http_reqs")) {
-          const match = line.match(/(\d+)/);
-          if (match) totalRequests = parseInt(match[1]);
+        // 提取总请求数 - 匹配 "http_reqs......................: 169570 16955.879216/s"
+        if (line.includes("http_reqs") && line.includes(":")) {
+          const match = line.match(/http_reqs[^:]*:\s*(\d+)\s+([\d.]+)\/s/);
+          if (match) {
+            totalRequests = parseInt(match[1]);
+            requestsPerSecond = parseFloat(match[2]);
+          }
         }
-        if (line.includes("http_req_rate")) {
-          const match = line.match(/(\d+\.?\d*)/);
-          if (match) requestsPerSecond = parseFloat(match[1]);
-        }
-        if (line.includes("http_req_duration")) {
-          const match = line.match(/avg=(\d+\.?\d*)/);
+        // 提取平均响应时间 - 匹配 "avg=202.35µs"
+        if (line.includes("http_req_duration") && line.includes("avg=")) {
+          const match = line.match(/avg=([\d.]+)µs/);
           if (match) averageLatency = parseFloat(match[1]);
         }
-        if (line.includes("p(95)")) {
-          const match = line.match(/p\(95\)=(\d+\.?\d*)/);
+        // 提取P95响应时间 - 匹配 "p(95)=520µs"
+        if (line.includes("p(95)=")) {
+          const match = line.match(/p\(95\)=([\d.]+)µs/);
           if (match) p95Latency = parseFloat(match[1]);
         }
-        if (line.includes("p(99)")) {
-          const match = line.match(/p\(99\)=(\d+\.?\d*)/);
+        // 提取P99响应时间 - 匹配 "p(99)=999.3µs"
+        if (line.includes("p(99)=")) {
+          const match = line.match(/p\(99\)=([\d.]+)µs/);
           if (match) p99Latency = parseFloat(match[1]);
         }
-        if (line.includes("http_req_failed")) {
-          const match = line.match(/(\d+\.?\d*)/);
-          if (match) errorRate = parseFloat(match[1]);
+        // 提取错误率 - 匹配 "rate=0.00%"
+        if (line.includes("http_req_failed") && line.includes("rate=")) {
+          const match = line.match(/rate=([\d.]+)%/);
+          if (match) errorRate = parseFloat(match[1]) / 100;
         }
+      }
+
+      // 如果无法从输出中提取到数据，尝试从自定义摘要中提取
+      if (totalRequests === 0) {
+        const summaryMatch = output.match(/总请求数:\s*(\d+)/);
+        if (summaryMatch) totalRequests = parseInt(summaryMatch[1]);
+      }
+      
+      if (requestsPerSecond === 0) {
+        const rateMatch = output.match(/请求速率:\s*(\d+\.?\d*)/);
+        if (rateMatch) requestsPerSecond = parseFloat(rateMatch[1]);
       }
 
       return {
@@ -313,24 +189,6 @@ class K6BenchmarkRunner {
   }
 
   /**
-   * 停止所有服务器
-   */
-  private async stopAllServers(): Promise<void> {
-    console.log("🛑 停止所有服务器...");
-
-    for (const [name, server] of this.servers) {
-      try {
-        server.kill("SIGTERM");
-        console.log(`✅ ${name} 服务器已停止`);
-      } catch (error) {
-        console.error(`❌ 停止 ${name} 服务器失败:`, error);
-      }
-    }
-
-    this.servers.clear();
-  }
-
-  /**
    * 运行完整的基准测试
    */
   async runBenchmark(): Promise<K6TestResult[]> {
@@ -339,13 +197,13 @@ class K6BenchmarkRunner {
     try {
       console.log("🚀 开始 K6 框架性能基准测试...\n");
 
-      for (const config of this.frameworkConfigs) {
+      for (const config of this.serverManager.getFrameworkConfigs()) {
         console.log(`\n📊 测试框架: ${config.displayName}`);
         console.log("=".repeat(50));
 
         try {
           // 启动服务器
-          const serverStarted = await this.startFrameworkServer(config);
+          const serverStarted = await this.serverManager.startFrameworkServer(config);
           if (!serverStarted) {
             console.log(`❌ ${config.displayName} 服务器启动失败，跳过测试`);
             results.push({
@@ -364,7 +222,7 @@ class K6BenchmarkRunner {
           }
 
           // 等待服务器就绪
-          const serverReady = await this.waitForServerReady(config.port);
+          const serverReady = await this.serverManager.waitForServerReady(config.port);
           if (!serverReady) {
             console.log(`❌ ${config.displayName} 服务器未就绪，跳过测试`);
             results.push({
@@ -416,7 +274,7 @@ class K6BenchmarkRunner {
     } catch (error) {
       console.error("❌ 基准测试执行失败:", error);
     } finally {
-      await this.stopAllServers();
+      await this.serverManager.stopAllServers();
     }
 
     return results;

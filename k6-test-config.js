@@ -10,7 +10,7 @@ const responseTime = new Trend('response_time');
 export const options = {
   // 阶段式负载测试
   stages: [
-    { duration: '10s', target: 10 },    // 预热阶段：30秒内增加到10个用户
+    { duration: '10s', target: 10 },    // 快速测试：10秒内增加到10个用户
   ],
   
   // 阈值设置
@@ -111,46 +111,8 @@ export default function () {
 export function handleSummary(data) {
   console.log('📊 测试完成，生成报告...');
   
+  // 只返回 JSON 格式，让 k6 自己处理
   return {
     'k6-results.json': JSON.stringify(data, null, 2),
-    stdout: textSummary(data, { indent: ' ', enableColors: true }),
   };
-}
-
-// 文本摘要函数
-function textSummary(data, options) {
-  const { metrics, root_group } = data;
-  
-  let summary = '\n📈 K6 性能测试报告\n';
-  summary += '='.repeat(50) + '\n\n';
-  
-  // HTTP 请求统计
-  if (metrics.http_reqs) {
-    summary += `🌐 HTTP 请求统计:\n`;
-    summary += `  总请求数: ${metrics.http_reqs.count}\n`;
-    summary += `  请求速率: ${metrics.http_reqs.rate.toFixed(2)} req/s\n`;
-    summary += `  平均响应时间: ${metrics.http_req_duration.avg.toFixed(2)}ms\n`;
-    summary += `  P95响应时间: ${metrics.http_req_duration.values['p(95)'].toFixed(2)}ms\n`;
-    summary += `  P99响应时间: ${metrics.http_req_duration.values['p(99)'].toFixed(2)}ms\n`;
-    summary += `  错误率: ${(metrics.http_req_failed.rate * 100).toFixed(2)}%\n\n`;
-  }
-  
-  // 自定义指标
-  if (metrics.response_time) {
-    summary += `⏱️  自定义响应时间:\n`;
-    summary += `  平均: ${metrics.response_time.avg.toFixed(2)}ms\n`;
-    summary += `  中位数: ${metrics.response_time.med.toFixed(2)}ms\n`;
-    summary += `  P95: ${metrics.response_time.values['p(95)'].toFixed(2)}ms\n`;
-    summary += `  P99: ${metrics.response_time.values['p(99)'].toFixed(2)}ms\n\n`;
-  }
-  
-  // 测试配置
-  summary += `⚙️  测试配置:\n`;
-  summary += `  框架: ${__ENV.FRAMEWORK || 'elysia'}\n`;
-  summary += `  基础URL: ${__ENV.BASE_URL || 'http://localhost:3000'}\n`;
-  summary += `  测试时长: ${data.state.testRunDuration / 1000}s\n\n`;
-  
-  summary += '='.repeat(50) + '\n';
-  
-  return summary;
 }
