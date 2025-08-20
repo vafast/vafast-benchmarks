@@ -146,9 +146,7 @@ export const vafastRoutesFactory = [
     method: "POST",
     path: "/",
     handler: createRouteHandler({}, async ({ body }) => {
-      return new Response(JSON.stringify({ message: simpleMessage, data: body }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return { message: simpleMessage, data: body };
     }),
   },
 ];
