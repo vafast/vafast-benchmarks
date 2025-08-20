@@ -9,6 +9,7 @@ import express from "express";
 import Koa from "koa";
 import Router from "@koa/router";
 import bodyParser from "koa-bodyparser";
+import { parseBody } from "hono/utils/body";
 
 // ============================================================================
 // 简单响应测试配置
@@ -16,10 +17,12 @@ import bodyParser from "koa-bodyparser";
 export const simpleMessage = "Hello, World!";
 
 // 1. 原生 Response - 性能基准
-export const nativeResponse = () =>
-  new Response(simpleMessage, {
-    headers: { "Content-Type": "text/plain" },
+export const nativeResponse = async (req: Request) => {
+  const body = await req.json();
+  return new Response(JSON.stringify({ message: simpleMessage, data: body }), {
+    headers: { "Content-Type": "application/json" },
   });
+};
 
 // 2. Elysia 框架
 export const elysiaApp = new Elysia().post("/", ({ body }) => {
@@ -73,7 +76,6 @@ export async function handleKoaRequest(req: Request): Promise<Response> {
 // Express 请求处理函数 - 修复：直接使用expressApp处理请求
 export async function handleExpressRequest(req: Request): Promise<Response> {
   // 将 Request 转换为 Express 兼容的格式
-  const url = new URL(req.url);
   const body = await req.json();
 
   const expressReq = {
@@ -125,23 +127,27 @@ export async function handleExpressRequest(req: Request): Promise<Response> {
 // 5. vafast 原生 - 直接路由
 export const vafastRoutesDirect = [
   {
-    method: "GET",
+    method: "POST",
     path: "/",
-    handler: () =>
-      new Response(simpleMessage, {
-        headers: { "Content-Type": "text/plain" },
-      }),
+    handler: async (req) => {
+      // 与其它框架保持一致：解析 JSON 请求体
+      const body = await parseBody(req);
+
+      return new Response(JSON.stringify({ message: simpleMessage, data: body }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
   },
 ];
 
 // 6. vafast 原生 - 工厂路由
 export const vafastRoutesFactory = [
   {
-    method: "GET",
+    method: "POST",
     path: "/",
-    handler: createRouteHandler({}, () => {
-      return new Response(simpleMessage, {
-        headers: { "Content-Type": "text/plain" },
+    handler: createRouteHandler({}, async ({ body }) => {
+      return new Response(JSON.stringify({ message: simpleMessage, data: body }), {
+        headers: { "Content-Type": "application/json" },
       });
     }),
   },

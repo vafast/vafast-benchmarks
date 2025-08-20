@@ -60,8 +60,8 @@ async function runSimpleResponseBenchmark(): Promise<TestResult[]> {
   console.log("\n🔍 单线程性能测试结果:");
   console.log("-".repeat(50));
 
-  const nativeResult = await benchmark("原生 Response", async () => {
-    return nativeResponse();
+  const nativeResult = await benchmark("原生 Response", async (req) => {
+    return await nativeResponse(req);
   });
 
   const elysiaResult = await benchmark("Elysia", async (req) => {
@@ -76,9 +76,9 @@ async function runSimpleResponseBenchmark(): Promise<TestResult[]> {
 
   const koaResult = await benchmark("Koa", handleKoaRequest);
 
-  const vafastDirectResult = await benchmark("vafast原生 (直接路由)", async () => {
+  const vafastDirectResult = await benchmark("vafast原生 (直接路由)", async (req) => {
     const route = vafastRoutesDirect[0]!;
-    return await route.handler();
+    return await route.handler(req);
   });
 
   const vafastFactoryResult = await benchmark("vafast原生 (工厂路由)", async (req) => {
