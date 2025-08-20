@@ -1,7 +1,97 @@
 {
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [],
+    "checks": [
+        {
+          "name": "纯文本响应 - 状态码是 200",
+          "path": "::纯文本响应 - 状态码是 200",
+          "id": "8b8c51694732dd48d0ca25dce4016a26",
+          "passes": 47907,
+          "fails": 0
+        },
+        {
+          "name": "纯文本响应 - 响应时间 < 500ms",
+          "path": "::纯文本响应 - 响应时间 < 500ms",
+          "id": "51334c659fa48eef119f8eb5979af8c5",
+          "passes": 47907,
+          "fails": 0
+        },
+        {
+          "path": "::纯文本响应 - 响应体不为空",
+          "id": "9fd348ea0e6b6496e23d2744cf7adc32",
+          "passes": 47907,
+          "fails": 0,
+          "name": "纯文本响应 - 响应体不为空"
+        },
+        {
+          "name": "JSON序列化 - 状态码是 200",
+          "path": "::JSON序列化 - 状态码是 200",
+          "id": "bc3d39c2fac5c65664b7e09fdb44a625",
+          "passes": 47426,
+          "fails": 0
+        },
+        {
+          "name": "JSON序列化 - 响应时间 < 500ms",
+          "path": "::JSON序列化 - 响应时间 < 500ms",
+          "id": "cf10bf092da9082d170dd749207b386f",
+          "passes": 47426,
+          "fails": 0
+        },
+        {
+          "name": "JSON序列化 - 响应体不为空",
+          "path": "::JSON序列化 - 响应体不为空",
+          "id": "4e019ac26560a0b49f4f78a283e015b5",
+          "passes": 47426,
+          "fails": 0
+        },
+        {
+          "path": "::数据库查询 - 状态码是 200",
+          "id": "5a265a39cc7aa8ca733114f883413048",
+          "passes": 47477,
+          "fails": 0,
+          "name": "数据库查询 - 状态码是 200"
+        },
+        {
+          "name": "数据库查询 - 响应时间 < 500ms",
+          "path": "::数据库查询 - 响应时间 < 500ms",
+          "id": "0f68134d6d9156463215d987535385d6",
+          "passes": 47477,
+          "fails": 0
+        },
+        {
+          "fails": 0,
+          "name": "数据库查询 - 响应体不为空",
+          "path": "::数据库查询 - 响应体不为空",
+          "id": "c5c8fcf474afa04d98a3344737e9450d",
+          "passes": 47477
+        },
+        {
+          "fails": 0,
+          "name": "Schema验证 - 状态码是 200",
+          "path": "::Schema验证 - 状态码是 200",
+          "id": "b4fc8fc170f6a30d77ec65c3eddb456a",
+          "passes": 47616
+        },
+        {
+          "id": "479b18c8ce12507e4514c6ae25498637",
+          "passes": 47616,
+          "fails": 0,
+          "name": "Schema验证 - 响应时间 < 500ms",
+          "path": "::Schema验证 - 响应时间 < 500ms"
+        },
+        {
+          "id": "c8f761114e43d6a3e3df71b0a3b15b62",
+          "passes": 47616,
+          "fails": 0,
+          "name": "Schema验证 - 响应体不为空",
+          "path": "::Schema验证 - 响应体不为空"
+        }
+      ]
+  },
   "options": {
-    "summaryTimeUnit": "",
-    "noColor": false,
     "summaryTrendStats": [
       "avg",
       "min",
@@ -9,117 +99,174 @@
       "max",
       "p(90)",
       "p(95)"
-    ]
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
   },
   "state": {
-    "testRunDurationMs": 10000.399,
     "isStdOutTTY": true,
-    "isStdErrTTY": true
+    "isStdErrTTY": true,
+    "testRunDurationMs": 10000.389
   },
   "metrics": {
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 29899923,
+        "rate": 2989875.9938238403
+      }
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 5.575,
+        "p(90)": 0.002,
+        "p(95)": 0.003,
+        "avg": 0.0014000766702042247,
+        "min": 0,
+        "med": 0.001
+      }
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 0.069,
+        "max": 73.491,
+        "p(90)": 0.173,
+        "p(95)": 0.242,
+        "avg": 0.10362255154233349,
+        "min": 0.018
+      }
+    },
+    "cold_start_time": {
+      "values": {
+        "min": 0,
+        "med": 0,
+        "max": 6,
+        "p(90)": 1,
+        "p(95)": 1.949999999999999,
+        "avg": 0.5909090909090909
+      },
+      "thresholds": {
+        "p(95)<10": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "default"
+    },
     "http_req_duration{expected_response:true}": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "max": 108.168,
-        "p(90)": 0.399,
-        "p(95)": 0.536,
-        "avg": 0.24123473993182817,
-        "min": 0.026,
-        "med": 0.166
+        "p(95)": 0.268,
+        "avg": 0.11922920189469717,
+        "min": 0.023,
+        "med": 0.083,
+        "max": 73.529,
+        "p(90)": 0.195
       }
     },
-    "http_req_connecting": {
+    "iteration_duration": {
+      "type": "trend",
       "contains": "time",
       "values": {
-        "med": 0,
-        "max": 69.203,
-        "p(90)": 0,
-        "p(95)": 0,
-        "avg": 0.0005567321045322562,
-        "min": 0
-      },
-      "type": "trend"
+        "max": 237.829375,
+        "p(90)": 0.4845625000000002,
+        "p(95)": 0.700625,
+        "avg": 0.25723963725016624,
+        "min": 0.05175,
+        "med": 0.162125
+      }
     },
-    "data_sent": {
-      "values": {
-        "count": 19938870,
-        "rate": 1993807.4470828613
-      },
+    "iterations": {
       "type": "counter",
-      "contains": "data"
-    },
-    "http_req_waiting": {
+      "contains": "default",
       "values": {
-        "p(90)": 0.375,
-        "p(95)": 0.51,
-        "avg": 0.22188373469259118,
-        "min": 0.021,
-        "med": 0.149,
-        "max": 108.116
+        "count": 190426,
+        "rate": 19041.859271674333
+      }
+    },
+    "http_req_receiving": {
+      "values": {
+        "p(90)": 0.021,
+        "p(95)": 0.031,
+        "avg": 0.011460730152397871,
+        "min": 0.003,
+        "med": 0.006,
+        "max": 23.746
       },
       "type": "trend",
       "contains": "time"
     },
-    "response_time": {
-      "contains": "default",
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
       "values": {
-        "p(95)": 1,
-        "avg": 0.24302487059714684,
-        "min": 0,
-        "med": 0,
-        "max": 109,
-        "p(90)": 1
+        "avg": 0.11922920189469717,
+        "min": 0.023,
+        "med": 0.083,
+        "max": 73.529,
+        "p(90)": 0.195,
+        "p(95)": 0.268
       },
       "thresholds": {
-        "p(95)<300": {
+        "p(95)<500": {
           "ok": true
         },
-        "p(99)<800": {
+        "p(99)<1000": {
           "ok": true
         }
-      },
-      "type": "trend"
-    },
-    "total_requests": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 126736,
-        "rate": 12673.094343535693
       }
     },
-    "http_req_receiving": {
+    "errors": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 190426
+      }
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 190426
+      },
+      "thresholds": {
+        "rate<0.01": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_connecting": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "max": 24.185,
-        "p(90)": 0.026,
-        "p(95)": 0.035,
-        "avg": 0.014299307221314323,
-        "min": 0.003,
-        "med": 0.008
-      }
-    },
-    "checks": {
-      "contains": "default",
-      "values": {
-        "passes": 380208,
-        "fails": 0,
-        "rate": 1
-      },
-      "type": "rate"
-    },
-    "http_req_tls_handshaking": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
+        "avg": 0.00003499522124079695,
         "min": 0,
         "med": 0,
-        "max": 0,
+        "max": 5.515,
         "p(90)": 0,
-        "p(95)": 0,
-        "avg": 0
+        "p(95)": 0
+      }
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 0.002,
+        "max": 17.47,
+        "p(90)": 0.006,
+        "p(95)": 0.01,
+        "avg": 0.004145920199967956,
+        "min": 0.001
       }
     },
     "vus_max": {
@@ -131,226 +278,79 @@
         "max": 10
       }
     },
-    "http_req_failed": {
-      "type": "rate",
+    "http_reqs": {
+      "type": "counter",
       "contains": "default",
       "values": {
-        "rate": 0,
-        "passes": 0,
-        "fails": 126736
+        "count": 190426,
+        "rate": 19041.859271674333
+      }
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 38314616,
+        "rate": 3831312.5619413406
+      }
+    },
+    "response_time": {
+      "type": "trend",
+      "contains": "default",
+      "values": {
+        "avg": 0.14518500624914665,
+        "min": 0,
+        "med": 0,
+        "max": 75,
+        "p(90)": 1,
+        "p(95)": 1
       },
       "thresholds": {
-        "rate<0.01": {
+        "p(95)<300": {
+          "ok": true
+        },
+        "p(99)<800": {
           "ok": true
         }
       }
     },
     "vus": {
-      "type": "gauge",
       "contains": "default",
       "values": {
-        "min": 1,
         "max": 9,
-        "value": 9
+        "value": 9,
+        "min": 1
+      },
+      "type": "gauge"
+    },
+    "total_requests": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 190426,
+        "rate": 19041.859271674333
       }
     },
-    "http_req_blocked": {
-      "contains": "time",
-      "values": {
-        "min": 0,
-        "med": 0.001,
-        "max": 69.254,
-        "p(90)": 0.002,
-        "p(95)": 0.003,
-        "avg": 0.002155670054288167
-      },
-      "type": "trend"
-    },
-    "errors": {
-      "values": {
-        "rate": 0,
-        "passes": 0,
-        "fails": 126736
-      },
+    "checks": {
       "type": "rate",
-      "contains": "default"
-    },
-    "http_req_sending": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "avg": 0.005051698017923692,
-        "min": 0.001,
-        "med": 0.003,
-        "max": 6.33,
-        "p(90)": 0.008,
-        "p(95)": 0.013
-      }
-    },
-    "cold_start_time": {
-      "type": "trend",
       "contains": "default",
       "values": {
-        "max": 76,
-        "p(90)": 18.400000000000013,
-        "p(95)": 47.199999999999974,
-        "avg": 9.444444444444445,
-        "min": 0,
-        "med": 1
-      },
-      "thresholds": {
-        "p(95)<10": {
-          "ok": false
-        }
-      }
-    },
-    "data_received": {
-      "contains": "data",
-      "values": {
-        "count": 25544730,
-        "rate": 2554371.0805938845
-      },
-      "type": "counter"
-    },
-    "http_reqs": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 126736,
-        "rate": 12673.094343535693
-      }
-    },
-    "iteration_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "avg": 0.38878850465534665,
-        "min": 0.059417,
-        "med": 0.2683335,
-        "max": 154.566792,
-        "p(90)": 0.648,
-        "p(95)": 0.817125
-      }
-    },
-    "iterations": {
-      "values": {
-        "count": 126736,
-        "rate": 12673.094343535693
-      },
-      "type": "counter",
-      "contains": "default"
-    },
-    "http_req_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "med": 0.166,
-        "max": 108.168,
-        "p(90)": 0.399,
-        "p(95)": 0.536,
-        "avg": 0.24123473993182817,
-        "min": 0.026
-      },
-      "thresholds": {
-        "p(95)<500": {
-          "ok": true
-        },
-        "p(99)<1000": {
-          "ok": true
-        }
+        "rate": 1,
+        "passes": 571278,
+        "fails": 0
       }
     }
-  },
-  "root_group": {
-    "name": "",
-    "path": "",
-    "id": "d41d8cd98f00b204e9800998ecf8427e",
-    "groups": [],
-    "checks": [
-        {
-          "name": "纯文本响应 - 状态码是 200",
-          "path": "::纯文本响应 - 状态码是 200",
-          "id": "8b8c51694732dd48d0ca25dce4016a26",
-          "passes": 31675,
-          "fails": 0
-        },
-        {
-          "name": "纯文本响应 - 响应时间 < 500ms",
-          "path": "::纯文本响应 - 响应时间 < 500ms",
-          "id": "51334c659fa48eef119f8eb5979af8c5",
-          "passes": 31675,
-          "fails": 0
-        },
-        {
-          "passes": 31675,
-          "fails": 0,
-          "name": "纯文本响应 - 响应体不为空",
-          "path": "::纯文本响应 - 响应体不为空",
-          "id": "9fd348ea0e6b6496e23d2744cf7adc32"
-        },
-        {
-          "name": "Schema验证 - 状态码是 200",
-          "path": "::Schema验证 - 状态码是 200",
-          "id": "b4fc8fc170f6a30d77ec65c3eddb456a",
-          "passes": 31833,
-          "fails": 0
-        },
-        {
-          "name": "Schema验证 - 响应时间 < 500ms",
-          "path": "::Schema验证 - 响应时间 < 500ms",
-          "id": "479b18c8ce12507e4514c6ae25498637",
-          "passes": 31833,
-          "fails": 0
-        },
-        {
-          "name": "Schema验证 - 响应体不为空",
-          "path": "::Schema验证 - 响应体不为空",
-          "id": "c8f761114e43d6a3e3df71b0a3b15b62",
-          "passes": 31833,
-          "fails": 0
-        },
-        {
-          "name": "JSON序列化 - 状态码是 200",
-          "path": "::JSON序列化 - 状态码是 200",
-          "id": "bc3d39c2fac5c65664b7e09fdb44a625",
-          "passes": 31421,
-          "fails": 0
-        },
-        {
-          "name": "JSON序列化 - 响应时间 < 500ms",
-          "path": "::JSON序列化 - 响应时间 < 500ms",
-          "id": "cf10bf092da9082d170dd749207b386f",
-          "passes": 31421,
-          "fails": 0
-        },
-        {
-          "name": "JSON序列化 - 响应体不为空",
-          "path": "::JSON序列化 - 响应体不为空",
-          "id": "4e019ac26560a0b49f4f78a283e015b5",
-          "passes": 31421,
-          "fails": 0
-        },
-        {
-          "id": "5a265a39cc7aa8ca733114f883413048",
-          "passes": 31807,
-          "fails": 0,
-          "name": "数据库查询 - 状态码是 200",
-          "path": "::数据库查询 - 状态码是 200"
-        },
-        {
-          "name": "数据库查询 - 响应时间 < 500ms",
-          "path": "::数据库查询 - 响应时间 < 500ms",
-          "id": "0f68134d6d9156463215d987535385d6",
-          "passes": 31807,
-          "fails": 0
-        },
-        {
-          "name": "数据库查询 - 响应体不为空",
-          "path": "::数据库查询 - 响应体不为空",
-          "id": "c5c8fcf474afa04d98a3344737e9450d",
-          "passes": 31807,
-          "fails": 0
-        }
-      ]
   }
 }
