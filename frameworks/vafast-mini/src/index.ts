@@ -1,7 +1,7 @@
 import { defineRoutes } from "vafast";
 import type { Route } from "vafast";
 import { Server } from "vafast";
-import { parseQuery, parseBody, json } from "vafast";
+import { parseQuery, parseBody, json, VafastError } from "vafast";
 import { Type } from "@sinclair/typebox";
 import { TypeCompiler } from "@sinclair/typebox/compiler";
 import {
@@ -128,24 +128,22 @@ const routes = defineRoutes([
         const isValid = batchSchemaCompiled.Check(body);
         if (!isValid) {
           const errors = [...batchSchemaCompiled.Errors(body)];
-          return json(
-            {
-              error: "Body validation failed",
-              details: errors,
-            },
-            { status: 400 }
-          );
+          const errorMessage = `Body validation failed: ${errors.map((e) => e.message).join(", ")}`;
+          throw new VafastError(errorMessage, {
+            status: 400,
+            type: "validation_error",
+            expose: true,
+          });
         }
 
         const result = simulateBatchProcessing(body);
         return json(result);
       } catch (error) {
-        return json(
-          {
-            error: error instanceof Error ? error.message : "Unknown error",
-          },
-          { status: 500 }
-        );
+        throw new VafastError(error instanceof Error ? error.message : "Unknown error", {
+          status: 500,
+          type: "internal_error",
+          expose: false,
+        });
       }
     },
   },
@@ -165,13 +163,12 @@ const routes = defineRoutes([
         const isValid = testSchemaCompiled.Check(body);
         if (!isValid) {
           const errors = [...testSchemaCompiled.Errors(body)];
-          return json(
-            {
-              error: "Body validation failed",
-              details: errors,
-            },
-            { status: 400 }
-          );
+          const errorMessage = `Body validation failed: ${errors.map((e) => e.message).join(", ")}`;
+          throw new VafastError(errorMessage, {
+            status: 400,
+            type: "validation_error",
+            expose: true,
+          });
         }
 
         return json({
@@ -184,12 +181,11 @@ const routes = defineRoutes([
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
-        return json(
-          {
-            error: error instanceof Error ? error.message : "Invalid JSON",
-          },
-          { status: 400 }
-        );
+        throw new VafastError(error instanceof Error ? error.message : "Invalid JSON", {
+          status: 400,
+          type: "bad_request",
+          expose: true,
+        });
       }
     },
   },
@@ -201,6 +197,7 @@ console.log(`⚡ Vafast-mini is running at http://localhost:3004`);
 console.log("📊 Available benchmark endpoints:");
 console.log("=== Schema 验证接口 ===");
 console.log("  POST /schema/validate               - 综合验证接口 (使用 TypeBox 原生验证)");
+console.log("  POST /error-demo                    - VafastError 演示接口");
 
 console.log("=== TechEmpower 风格测试接口 ===");
 console.log("  GET  /techempower/json                          - JSON序列化测试");
