@@ -155,6 +155,6 @@ console.log(
 
 // 导出服务器
 export default {
-  port: 3005,
+  port: 3004,
   fetch: (req: Request) => server.fetch(req),
 };

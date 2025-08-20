@@ -212,6 +212,6 @@ console.log("  GET  /health                                    - 健康检查");
 
 // 导出 fetch 函数，使 Bun 能够启动 HTTP 服务器
 export default {
-  port: 3004,
+  port: 3005,
   fetch: (req: Request) => server.fetch(req),
 };
