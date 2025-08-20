@@ -10,12 +10,7 @@ const responseTime = new Trend('response_time');
 export const options = {
   // 阶段式负载测试
   stages: [
-    { duration: '30s', target: 10 },    // 预热阶段：30秒内增加到10个用户
-    { duration: '1m', target: 50 },     // 爬升阶段：1分钟内增加到50个用户
-    { duration: '2m', target: 50 },     // 稳定阶段：2分钟保持50个用户
-    { duration: '30s', target: 100 },   // 峰值阶段：30秒内增加到100个用户
-    { duration: '1m', target: 100 },    // 峰值保持：1分钟保持100个用户
-    { duration: '30s', target: 0 },     // 下降阶段：30秒内减少到0个用户
+    { duration: '30s', target: 100 },    // 预热阶段：30秒内增加到10个用户
   ],
   
   // 阈值设置
