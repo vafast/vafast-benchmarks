@@ -4,12 +4,11 @@
 
 import { Elysia } from "elysia";
 import { Hono } from "hono";
-import { createRouteHandler, json } from "vafast";
+import { createRouteHandler, json, parseBody } from "vafast";
 import express from "express";
 import Koa from "koa";
 import Router from "@koa/router";
 import bodyParser from "koa-bodyparser";
-import { parseBody } from "hono/utils/body";
 
 // ============================================================================
 // 简单响应测试配置
@@ -132,7 +131,7 @@ export const vafastRoutesDirect = [
     handler: async (req) => {
       // 与其它框架保持一致：解析 JSON 请求体
       const body = await parseBody(req);
-      console.log(body, "body21212");
+
       return json({ message: simpleMessage, data: body });
     },
   },
@@ -144,7 +143,6 @@ export const vafastRoutesFactory = [
     method: "POST",
     path: "/",
     handler: createRouteHandler(async ({ body }) => {
-      console.log(body, "body2eee1");
       return { message: simpleMessage, data: body };
     }),
   },

@@ -68,7 +68,6 @@ export const vafastValidatorRoutes = [
     path: "/",
     handler: createRouteHandler(
       ({ body }) => {
-        console.log(body, "bodybody");
         return { message: "Hello World", data: body };
       },
       {

@@ -22,7 +22,7 @@
     "hono": "^4.9.2",
     "koa": "^3.0.1",
     "koa-bodyparser": "^4.4.1",
-    "vafast": "0.1.5"
+    "vafast": "0.1.9"
   },
   "devDependencies": {
     "bun": "latest",
