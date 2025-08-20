@@ -665,12 +665,13 @@ class UniversalFrameworkTester {
   }
 
   /**
-   * 测试单个框架（增强错误处理版本）
+   * 测试单个框架
    */
   async testFramework(
     frameworkName: string,
     testDuration: number = 10,
-    maxRetries: number = 2
+    maxRetries: number = 2,
+    manualStart: boolean = false
   ): Promise<PerformanceMetrics | null> {
     const config = this.frameworkConfigs.find((c) => c.name === frameworkName);
     if (!config) {
@@ -689,18 +690,43 @@ class UniversalFrameworkTester {
       try {
         console.log(`🔄 ${config.displayName} 测试尝试 ${attempt}/${maxRetries}`);
 
-        // 清理之前可能的残留进程
-        const existingProcess = this.serverProcesses.get(config.name);
-        if (existingProcess && !existingProcess.killed) {
-          existingProcess.kill("SIGKILL");
-          this.serverProcesses.delete(config.name);
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+        let coldStartTime = 0;
+
+        if (!manualStart) {
+          // 自动启动模式：清理之前可能的残留进程
+          const existingProcess = this.serverProcesses.get(config.name);
+          if (existingProcess && !existingProcess.killed) {
+            existingProcess.kill("SIGKILL");
+            this.serverProcesses.delete(config.name);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+
+          coldStartTime = await this.startFrameworkServer(config);
+
+          // 等待服务器完全就绪
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        } else {
+          // 手动启动模式：假设服务已经运行，只进行健康检查
+          console.log(`⚠️  手动启动模式：跳过启动 ${config.displayName} 服务器`);
+          
+          // 等待服务器完全就绪
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          
+          // 验证服务是否可用
+          try {
+            const testEndpoint = this.commonTestEndpoints[0];
+            const result = await this.sendHealthCheck(testEndpoint, config.port);
+            if (!result.success) {
+              throw new Error(`服务不可用，状态检查失败`);
+            }
+            console.log(`✅ ${config.displayName} 服务可用，开始测试`);
+            
+            // 手动启动模式下，冷启动时间设为0（因为服务已经运行）
+            coldStartTime = 0;
+          } catch (error) {
+            throw new Error(`服务不可用: ${error instanceof Error ? error.message : '未知错误'}`);
+          }
         }
-
-        const coldStartTime = await this.startFrameworkServer(config);
-
-        // 等待服务器完全就绪
-        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // 执行预热请求
         try {
@@ -741,18 +767,20 @@ class UniversalFrameworkTester {
         };
       } catch (error) {
         lastError = error as Error;
-        console.error(`❌ ${config.displayName} 测试尝试 ${attempt} 失败:`, error);
+        console.error(`❌ ${config.displayName} 测试尝试 ${attempt}/${maxRetries} 失败:`, error);
 
-        // 清理失败的进程
-        const process = this.serverProcesses.get(config.name);
-        if (process && !process.killed) {
-          try {
-            process.kill("SIGKILL");
-          } catch (killError) {
-            console.warn(`⚠️  清理进程失败:`, killError);
+        if (!manualStart) {
+          // 自动启动模式：清理失败的进程
+          const process = this.serverProcesses.get(config.name);
+          if (process && !process.killed) {
+            try {
+              process.kill("SIGKILL");
+            } catch (killError) {
+              console.warn(`⚠️  清理进程失败:`, killError);
+            }
           }
+          this.serverProcesses.delete(config.name);
         }
-        this.serverProcesses.delete(config.name);
 
         if (attempt < maxRetries) {
           const backoffTime = attempt * 2000; // 指数退避
@@ -769,7 +797,7 @@ class UniversalFrameworkTester {
   /**
    * 测试所有可用框架
    */
-  async testAllFrameworks(testDuration: number = 10): Promise<PerformanceMetrics[]> {
+  async testAllFrameworks(testDuration: number = 10, manualStart: boolean = false): Promise<PerformanceMetrics[]> {
     console.log("🚀 开始通用框架性能测试");
     console.log("=".repeat(60));
 
@@ -793,20 +821,24 @@ class UniversalFrameworkTester {
       console.log(`🔄 测试 ${config.displayName}`);
       console.log(`${"=".repeat(40)}`);
 
-      const result = await this.testFramework(config.name, testDuration);
+      const result = await this.testFramework(config.name, testDuration, manualStart);
 
       if (result) {
         results.push(result);
         this.printFrameworkResult(result);
       }
 
-      // 增强的框架清理
-      console.log(`🧹 清理 ${config.displayName} 资源...`);
-      await this.cleanupFramework(config.name);
-      console.log(`✅ ${config.displayName} 资源清理完成`);
+      // 增强的框架清理（仅在自动启动模式下）
+      if (!manualStart) {
+        console.log(`🧹 清理 ${config.displayName} 资源...`);
+        await this.cleanupFramework(config.name);
+        console.log(`✅ ${config.displayName} 资源清理完成`);
 
-      // 等待更长时间确保端口完全释放
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+        // 等待更长时间确保端口完全释放
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      } else {
+        console.log(`⚠️  手动启动模式：跳过 ${config.displayName} 资源清理`);
+      }
     }
 
     return results;

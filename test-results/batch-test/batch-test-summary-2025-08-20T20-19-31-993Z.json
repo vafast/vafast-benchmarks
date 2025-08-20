@@ -1,0 +1,114 @@
+{
+  "testInfo": {
+    "timestamp": "2025-08-20T20:19:31.993Z",
+    "testDuration": 10,
+    "totalFrameworks": 3,
+    "outputDirectory": "test-results/batch-test"
+  },
+  "results": [
+    {
+      "framework": "Hono",
+      "coldStartTime": 1005.3286249999946,
+      "totalRequests": 153148,
+      "requestsPerSecond": 15260.74231810027,
+      "averageLatency": 29.387896786213478,
+      "minLatency": 0.042249999998603016,
+      "maxLatency": 679.2538750000094,
+      "p95Latency": 168.61962499999208,
+      "errorRate": 0,
+      "memoryUsage": {
+        "heapUsed": 34.5,
+        "heapTotal": 37.55,
+        "external": 27.33,
+        "rss": 148.75
+      }
+    },
+    {
+      "framework": "Express",
+      "coldStartTime": 1009.1625829999975,
+      "totalRequests": 154712,
+      "requestsPerSecond": 15430.806777099593,
+      "averageLatency": 33.28766266364575,
+      "minLatency": 0.0449159999989206,
+      "maxLatency": 2041.286374999996,
+      "p95Latency": 154.468458000003,
+      "errorRate": 0,
+      "memoryUsage": {
+        "heapUsed": 12.4,
+        "heapTotal": 9.55,
+        "external": 5.75,
+        "rss": 152.8
+      }
+    },
+    {
+      "framework": "Koa",
+      "coldStartTime": 1023.7742910000088,
+      "totalRequests": 267390,
+      "requestsPerSecond": 26593.676858282164,
+      "averageLatency": 15.95425372062923,
+      "minLatency": 0.045707999990554526,
+      "maxLatency": 119.796875,
+      "p95Latency": 27.71333300000697,
+      "errorRate": 0,
+      "memoryUsage": {
+        "heapUsed": 15.09,
+        "heapTotal": 41.39,
+        "external": 10.78,
+        "rss": 155.91
+      }
+    }
+  ],
+  "rankings": {
+    "byRPS": [
+      {
+        "rank": 1,
+        "framework": "Koa",
+        "rps": 26593.676858282164
+      },
+      {
+        "rank": 2,
+        "framework": "Express",
+        "rps": 15430.806777099593
+      },
+      {
+        "rank": 3,
+        "framework": "Hono",
+        "rps": 15260.74231810027
+      }
+    ],
+    "byLatency": [
+      {
+        "rank": 1,
+        "framework": "Koa",
+        "latency": 15.95425372062923
+      },
+      {
+        "rank": 2,
+        "framework": "Hono",
+        "latency": 29.387896786213478
+      },
+      {
+        "rank": 3,
+        "framework": "Express",
+        "latency": 33.28766266364575
+      }
+    ],
+    "byColdStart": [
+      {
+        "rank": 1,
+        "framework": "Hono",
+        "coldStart": 1005.3286249999946
+      },
+      {
+        "rank": 2,
+        "framework": "Express",
+        "coldStart": 1009.1625829999975
+      },
+      {
+        "rank": 3,
+        "framework": "Koa",
+        "coldStart": 1023.7742910000088
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
-import { UniversalFrameworkTester, PerformanceMetrics } from './universal-framework-tester';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { UniversalFrameworkTester, PerformanceMetrics } from "./universal-framework-tester";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { join } from "path";
 
 interface BatchTestConfig {
   testDuration: number;
@@ -8,6 +8,7 @@ interface BatchTestConfig {
   includeK6: boolean;
   saveDetailedResults: boolean;
   saveComparisonReport: boolean;
+  manualStart: boolean; // 新增：手动启动模式
 }
 
 class BatchFrameworkTester {
@@ -37,7 +38,7 @@ class BatchFrameworkTester {
 
     const filename = `${framework}-detailed-results.json`;
     const filepath = join(this.config.outputDir, filename);
-    
+
     const detailedResult = {
       framework: result.framework,
       timestamp: new Date().toISOString(),
@@ -47,37 +48,39 @@ class BatchFrameworkTester {
           emoji: "👑",
           name: "冷启动",
           value: `${result.coldStartTime.toFixed(2)} ms`,
-          description: `${result.coldStartTime.toFixed(2)} ms. 无延迟，无妥协。冷启动王者之冠属于我们。`
+          description: `${result.coldStartTime.toFixed(
+            2
+          )} ms. 无延迟，无妥协。冷启动王者之冠属于我们。`,
         },
         requestsPerSecond: {
           emoji: "⚡️",
           name: "每秒请求数",
           value: `${result.requestsPerSecond.toFixed(2)} rps`,
-          description: "为瞬时流量而生 — 无需预热。"
+          description: "为瞬时流量而生 — 无需预热。",
         },
         avgLatency: {
           emoji: "📉",
           name: "平均延迟",
           value: `${result.averageLatency.toFixed(2)} ms`,
-          description: "压力之下依然迅捷。始终如一。"
+          description: "压力之下依然迅捷。始终如一。",
         },
         totalRequests: {
           emoji: "🎯",
           name: "总请求数",
           value: `${result.totalRequests} req / ${this.config.testDuration}s`,
-          description: `在${this.config.testDuration}秒内完成的总请求数`
+          description: `在${this.config.testDuration}秒内完成的总请求数`,
         },
         performance: {
           minLatency: result.minLatency,
           maxLatency: result.maxLatency,
           p95Latency: result.p95Latency,
           errorRate: result.errorRate,
-          memoryUsage: result.memoryUsage
-        }
-      }
+          memoryUsage: result.memoryUsage,
+        },
+      },
     };
 
-    writeFileSync(filepath, JSON.stringify(detailedResult, null, 2), 'utf8');
+    writeFileSync(filepath, JSON.stringify(detailedResult, null, 2), "utf8");
     console.log(`💾 保存详细结果: ${filepath}`);
   }
 
@@ -85,7 +88,7 @@ class BatchFrameworkTester {
    * 保存所有框架的汇总结果
    */
   private saveSummaryResults(results: PerformanceMetrics[]): void {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `batch-test-summary-${timestamp}.json`;
     const filepath = join(this.config.outputDir, filename);
 
@@ -94,9 +97,10 @@ class BatchFrameworkTester {
         timestamp: new Date().toISOString(),
         testDuration: this.config.testDuration,
         totalFrameworks: results.length,
-        outputDirectory: this.config.outputDir
+        outputDirectory: this.config.outputDir,
+        manualStart: this.config.manualStart,
       },
-      results: results.map(result => ({
+      results: results.map((result) => ({
         framework: result.framework,
         coldStartTime: result.coldStartTime,
         totalRequests: result.totalRequests,
@@ -106,7 +110,7 @@ class BatchFrameworkTester {
         maxLatency: result.maxLatency,
         p95Latency: result.p95Latency,
         errorRate: result.errorRate,
-        memoryUsage: result.memoryUsage
+        memoryUsage: result.memoryUsage,
       })),
       rankings: {
         byRPS: results
@@ -117,11 +121,11 @@ class BatchFrameworkTester {
           .map((r, i) => ({ rank: i + 1, framework: r.framework, latency: r.averageLatency })),
         byColdStart: results
           .sort((a, b) => a.coldStartTime - b.coldStartTime)
-          .map((r, i) => ({ rank: i + 1, framework: r.framework, coldStart: r.coldStartTime }))
-      }
+          .map((r, i) => ({ rank: i + 1, framework: r.framework, coldStart: r.coldStartTime })),
+      },
     };
 
-    writeFileSync(filepath, JSON.stringify(summary, null, 2), 'utf8');
+    writeFileSync(filepath, JSON.stringify(summary, null, 2), "utf8");
     console.log(`💾 保存汇总结果: ${filepath}`);
   }
 
@@ -131,14 +135,15 @@ class BatchFrameworkTester {
   private saveComparisonReport(results: PerformanceMetrics[]): void {
     if (!this.config.saveComparisonReport) return;
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `comparison-report-${timestamp}.md`;
     const filepath = join(this.config.outputDir, filename);
 
     let report = `# 🏆 框架性能对比报告\n\n`;
     report += `**测试时间**: ${new Date().toISOString()}\n`;
     report += `**测试时长**: ${this.config.testDuration} 秒\n`;
-    report += `**测试框架数量**: ${results.length}\n\n`;
+    report += `**测试框架数量**: ${results.length}\n`;
+    report += `**启动模式**: ${this.config.manualStart ? "手动启动" : "自动启动"}\n\n`;
 
     // RPS 排名
     const sortedByRps = [...results].sort((a, b) => b.requestsPerSecond - a.requestsPerSecond);
@@ -174,17 +179,27 @@ class BatchFrameworkTester {
     report += `\n## 📊 详细性能数据\n\n`;
     report += `| 框架 | 冷启动 | 总请求数 | RPS | 平均延迟 | P95延迟 | 错误率 |\n`;
     report += `|------|---------|----------|-----|----------|----------|--------|\n`;
-    results.forEach(result => {
-      report += `| ${result.framework} | ${result.coldStartTime.toFixed(2)}ms | ${result.totalRequests} | ${result.requestsPerSecond.toFixed(2)} | ${result.averageLatency.toFixed(2)}ms | ${result.p95Latency.toFixed(2)}ms | ${result.errorRate.toFixed(2)}% |\n`;
+    results.forEach((result) => {
+      report += `| ${result.framework} | ${result.coldStartTime.toFixed(2)}ms | ${
+        result.totalRequests
+      } | ${result.requestsPerSecond.toFixed(2)} | ${result.averageLatency.toFixed(
+        2
+      )}ms | ${result.p95Latency.toFixed(2)}ms | ${result.errorRate.toFixed(2)}% |\n`;
     });
 
     // 总结
     report += `\n## 📝 测试总结\n\n`;
-    report += `- **最高RPS**: ${Math.max(...results.map(r => r.requestsPerSecond)).toFixed(2)} (${sortedByRps[0].framework})\n`;
-    report += `- **最低延迟**: ${Math.min(...results.map(r => r.averageLatency)).toFixed(2)} ms (${sortedByLatency[0].framework})\n`;
-    report += `- **最快冷启动**: ${Math.min(...results.map(r => r.coldStartTime)).toFixed(2)} ms (${sortedByColdStart[0].framework})\n`;
+    report += `- **最高RPS**: ${Math.max(...results.map((r) => r.requestsPerSecond)).toFixed(2)} (${
+      sortedByRps[0].framework
+    })\n`;
+    report += `- **最低延迟**: ${Math.min(...results.map((r) => r.averageLatency)).toFixed(
+      2
+    )} ms (${sortedByLatency[0].framework})\n`;
+    report += `- **最快冷启动**: ${Math.min(...results.map((r) => r.coldStartTime)).toFixed(
+      2
+    )} ms (${sortedByColdStart[0].framework})\n`;
 
-    writeFileSync(filepath, report, 'utf8');
+    writeFileSync(filepath, report, "utf8");
     console.log(`💾 保存对比报告: ${filepath}`);
   }
 
@@ -194,34 +209,34 @@ class BatchFrameworkTester {
   private async runK6Tests(): Promise<void> {
     if (!this.config.includeK6) return;
 
-    console.log('\n🔧 运行K6性能测试...');
-    
+    console.log("\n🔧 运行K6性能测试...");
+
     try {
-      const { spawn } = require('child_process');
-      
+      const { spawn } = require("child_process");
+
       // 运行k6测试
-      const k6Process = spawn('k6', ['run', 'k6-test-config.js'], {
-        stdio: 'pipe'
+      const k6Process = spawn("k6", ["run", "k6-test-config.js"], {
+        stdio: "pipe",
       });
 
       return new Promise((resolve, reject) => {
-        let output = '';
-        
-        k6Process.stdout?.on('data', (data: Buffer) => {
+        let output = "";
+
+        k6Process.stdout?.on("data", (data: Buffer) => {
           const text = data.toString();
           output += text;
           process.stdout.write(text);
         });
 
-        k6Process.stderr?.on('data', (data: Buffer) => {
+        k6Process.stderr?.on("data", (data: Buffer) => {
           const text = data.toString();
           output += text;
           process.stderr.write(text);
         });
 
-        k6Process.on('close', (code: number) => {
+        k6Process.on("close", (code: number) => {
           if (code === 0) {
-            console.log('✅ K6测试完成');
+            console.log("✅ K6测试完成");
             resolve();
           } else {
             console.log(`❌ K6测试失败，退出码: ${code}`);
@@ -230,7 +245,7 @@ class BatchFrameworkTester {
         });
       });
     } catch (error) {
-      console.error('❌ K6测试执行失败:', error);
+      console.error("❌ K6测试执行失败:", error);
     }
   }
 
@@ -238,32 +253,49 @@ class BatchFrameworkTester {
    * 运行完整的批量测试
    */
   async runBatchTest(): Promise<PerformanceMetrics[]> {
-    console.log('🚀 开始批量框架性能测试');
-    console.log('='.repeat(60));
+    console.log("🚀 开始批量框架性能测试");
+    console.log("=".repeat(60));
     console.log(`📋 测试配置:`);
     console.log(`   • 测试时长: ${this.config.testDuration} 秒`);
     console.log(`   • 输出目录: ${this.config.outputDir}`);
-    console.log(`   • 包含K6测试: ${this.config.includeK6 ? '是' : '否'}`);
-    console.log(`   • 保存详细结果: ${this.config.saveDetailedResults ? '是' : '否'}`);
-    console.log(`   • 保存对比报告: ${this.config.saveComparisonReport ? '是' : '否'}`);
-    console.log('='.repeat(60));
+    console.log(`   • 包含K6测试: ${this.config.includeK6 ? "是" : "否"}`);
+    console.log(`   • 保存详细结果: ${this.config.saveDetailedResults ? "是" : "否"}`);
+    console.log(`   • 保存对比报告: ${this.config.saveComparisonReport ? "是" : "否"}`);
+    console.log(`   • 启动模式: ${this.config.manualStart ? "手动启动" : "自动启动"}`);
+    console.log("=".repeat(60));
+
+    if (this.config.manualStart) {
+      console.log("\n⚠️  手动启动模式：请确保所有框架服务已手动启动");
+      console.log("📋 需要启动的服务端口:");
+      console.log("   • Elysia: 3000");
+      console.log("   • Hono: 3001");
+      console.log("   • Express: 3002");
+      console.log("   • Koa: 3003");
+      console.log("   • Vafast: 3004");
+      console.log("   • Vafast-mini: 3005");
+      console.log("\n⏳ 等待5秒后开始测试...");
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
 
     // 创建输出目录
     this.createOutputDirectory();
 
     try {
       // 运行框架测试
-      console.log('\n🧪 开始框架性能测试...');
-      const results = await this.tester.testAllFrameworks(this.config.testDuration);
+      console.log("\n🧪 开始框架性能测试...");
+      const results = await this.tester.testAllFrameworks(
+        this.config.testDuration,
+        this.config.manualStart
+      );
 
       if (results.length === 0) {
-        console.log('❌ 没有获得测试结果');
+        console.log("❌ 没有获得测试结果");
         return results;
       }
 
       // 保存结果
-      console.log('\n💾 保存测试结果...');
-      results.forEach(result => {
+      console.log("\n💾 保存测试结果...");
+      results.forEach((result) => {
         this.saveFrameworkResult(result.framework, result);
       });
 
@@ -279,21 +311,24 @@ class BatchFrameworkTester {
       }
 
       // 打印对比报告
-      console.log('\n📊 测试完成！打印对比报告...');
+      console.log("\n📊 测试完成！打印对比报告...");
       this.tester.printComparisonReport(results);
 
       console.log(`\n🎉 批量测试完成！所有结果已保存到: ${this.config.outputDir}`);
-      
-      return results;
 
+      return results;
     } catch (error) {
-      console.error('❌ 批量测试执行失败:', error);
+      console.error("❌ 批量测试执行失败:", error);
       throw error;
     } finally {
-      // 清理资源
-      console.log('\n🧹 清理资源...');
-      await this.tester.stopAllServers();
-      console.log('✅ 资源清理完成');
+      // 清理资源（仅在自动启动模式下）
+      if (!this.config.manualStart) {
+        console.log("\n🧹 清理资源...");
+        await this.tester.stopAllServers();
+        console.log("✅ 资源清理完成");
+      } else {
+        console.log("\n⚠️  手动启动模式：请手动停止服务");
+      }
     }
   }
 }
@@ -302,10 +337,11 @@ class BatchFrameworkTester {
 async function main() {
   const config: BatchTestConfig = {
     testDuration: process.argv[2] ? parseInt(process.argv[2]) : 10,
-    outputDir: process.argv[3] || 'test-results/batch-test',
-    includeK6: process.argv.includes('--k6'),
-    saveDetailedResults: !process.argv.includes('--no-details'),
-    saveComparisonReport: !process.argv.includes('--no-report')
+    outputDir: process.argv[3] || "test-results/batch-test",
+    includeK6: process.argv.includes("--k6"),
+    saveDetailedResults: !process.argv.includes("--no-details"),
+    saveComparisonReport: !process.argv.includes("--no-report"),
+    manualStart: process.argv.includes("--manual"), // 新增：手动启动模式
   };
 
   const batchTester = new BatchFrameworkTester(config);
@@ -313,7 +349,7 @@ async function main() {
   try {
     await batchTester.runBatchTest();
   } catch (error) {
-    console.error('批量测试执行失败:', error);
+    console.error("批量测试执行失败:", error);
     process.exit(1);
   }
 }

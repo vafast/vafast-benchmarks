@@ -1,0 +1,43 @@
+{
+  "framework": "Koa",
+  "timestamp": "2025-08-20T20:19:31.993Z",
+  "testDuration": 10,
+  "metrics": {
+    "coldStart": {
+      "emoji": "👑",
+      "name": "冷启动",
+      "value": "1023.77 ms",
+      "description": "1023.77 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+    },
+    "requestsPerSecond": {
+      "emoji": "⚡️",
+      "name": "每秒请求数",
+      "value": "26593.68 rps",
+      "description": "为瞬时流量而生 — 无需预热。"
+    },
+    "avgLatency": {
+      "emoji": "📉",
+      "name": "平均延迟",
+      "value": "15.95 ms",
+      "description": "压力之下依然迅捷。始终如一。"
+    },
+    "totalRequests": {
+      "emoji": "🎯",
+      "name": "总请求数",
+      "value": "267390 req / 10s",
+      "description": "在10秒内完成的总请求数"
+    },
+    "performance": {
+      "minLatency": 0.045707999990554526,
+      "maxLatency": 119.796875,
+      "p95Latency": 27.71333300000697,
+      "errorRate": 0,
+      "memoryUsage": {
+        "heapUsed": 15.09,
+        "heapTotal": 41.39,
+        "external": 10.78,
+        "rss": 155.91
+      }
+    }
+  }
+}

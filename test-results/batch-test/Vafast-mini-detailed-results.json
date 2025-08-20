@@ -1,0 +1,43 @@
+{
+  "framework": "Vafast-mini",
+  "timestamp": "2025-08-20T20:18:41.673Z",
+  "testDuration": 10,
+  "metrics": {
+    "coldStart": {
+      "emoji": "👑",
+      "name": "冷启动",
+      "value": "22373.48 ms",
+      "description": "22373.48 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+    },
+    "requestsPerSecond": {
+      "emoji": "⚡️",
+      "name": "每秒请求数",
+      "value": "14045.65 rps",
+      "description": "为瞬时流量而生 — 无需预热。"
+    },
+    "avgLatency": {
+      "emoji": "📉",
+      "name": "平均延迟",
+      "value": "27.93 ms",
+      "description": "压力之下依然迅捷。始终如一。"
+    },
+    "totalRequests": {
+      "emoji": "🎯",
+      "name": "总请求数",
+      "value": "140810 req / 10s",
+      "description": "在10秒内完成的总请求数"
+    },
+    "performance": {
+      "minLatency": 0.040624999994179234,
+      "maxLatency": 3992.920624999999,
+      "p95Latency": 165.50608299998567,
+      "errorRate": 0,
+      "memoryUsage": {
+        "heapUsed": 16.92,
+        "heapTotal": 23.83,
+        "external": 13.75,
+        "rss": 170.84
+      }
+    }
+  }
+}
