@@ -1,6 +1,32 @@
-import { UniversalFrameworkTester, PerformanceMetrics } from "./universal-framework-tester";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
+import * as http from "http";
+import { performance } from "perf_hooks";
+
+interface PerformanceMetrics {
+  framework: string;
+  coldStartTime: number;
+  totalRequests: number;
+  requestsPerSecond: number;
+  averageLatency: number;
+  minLatency: number;
+  maxLatency: number;
+  p95Latency: number;
+  testDuration: number;
+  errorRate: number;
+  memoryUsage?: {
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+    rss: number;
+  };
+}
+
+interface FrameworkConfig {
+  name: string;
+  displayName: string;
+  port: number;
+}
 
 interface BatchTestConfig {
   testDuration: number;
@@ -8,15 +34,59 @@ interface BatchTestConfig {
   includeK6: boolean;
   saveDetailedResults: boolean;
   saveComparisonReport: boolean;
-  manualStart: boolean; // 新增：手动启动模式
+  manualStart: boolean;
+}
+
+interface TestEndpoint {
+  path: string;
+  method: "GET" | "POST";
+  body?: any;
+  description: string;
 }
 
 class BatchFrameworkTester {
-  private tester: UniversalFrameworkTester;
   private config: BatchTestConfig;
 
+  // 框架配置
+  private readonly frameworkConfigs: FrameworkConfig[] = [
+    { name: "elysia", displayName: "Elysia", port: 3000 },
+    { name: "hono", displayName: "Hono", port: 3001 },
+    { name: "express", displayName: "Express", port: 3002 },
+    { name: "koa", displayName: "Koa", port: 3003 },
+    { name: "vafast", displayName: "Vafast", port: 3004 },
+    { name: "vafast-mini", displayName: "Vafast-Mini", port: 3005 },
+  ];
+
+  // 测试端点
+  private readonly testEndpoints: TestEndpoint[] = [
+    { path: "/techempower/json", method: "GET", description: "JSON序列化测试" },
+    { path: "/techempower/plaintext", method: "GET", description: "纯文本响应测试" },
+    { path: "/techempower/db?queries=1", method: "GET", description: "数据库查询模拟" },
+    {
+      path: "/schema/validate",
+      method: "POST",
+      description: "Schema验证测试",
+      body: {
+        user: {
+          name: "Test User",
+          phone: "13800138000",
+          age: 25,
+          active: true,
+          tags: ["test", "user"],
+          preferences: {
+            theme: "light",
+            language: "zh-CN",
+          },
+        },
+        metadata: {
+          version: "1.0.0",
+          timestamp: new Date().toISOString(),
+        },
+      },
+    },
+  ];
+
   constructor(config: BatchTestConfig) {
-    this.tester = new UniversalFrameworkTester();
     this.config = config;
   }
 
@@ -28,6 +98,295 @@ class BatchFrameworkTester {
       mkdirSync(this.config.outputDir, { recursive: true });
       console.log(`📁 创建输出目录: ${this.config.outputDir}`);
     }
+  }
+
+  /**
+   * 发送HTTP请求并测量延迟
+   */
+  private async sendRequest(
+    endpoint: TestEndpoint,
+    port: number
+  ): Promise<{ latency: number; success: boolean }> {
+    return new Promise((resolve) => {
+      const startTime = performance.now();
+      const requestBody = endpoint.body ? JSON.stringify(endpoint.body) : null;
+
+      const options = {
+        hostname: "localhost",
+        port: port,
+        path: endpoint.path,
+        method: endpoint.method,
+        headers: {
+          "Content-Type": "application/json",
+          Connection: "keep-alive",
+          ...(requestBody && { "Content-Length": Buffer.byteLength(requestBody) }),
+        },
+        timeout: 5000,
+        agent: false,
+      };
+
+      const req = http.request(options, (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          const latency = performance.now() - startTime;
+          resolve({ latency, success: res.statusCode! >= 200 && res.statusCode! < 300 });
+        });
+      });
+
+      req.on("error", () => {
+        const latency = performance.now() - startTime;
+        resolve({ latency, success: false });
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        const latency = performance.now() - startTime;
+        resolve({ latency, success: false });
+      });
+
+      if (requestBody && endpoint.method === "POST") {
+        req.write(requestBody);
+      }
+
+      req.end();
+    });
+  }
+
+  /**
+   * 健康检查
+   */
+  private async healthCheck(port: number): Promise<boolean> {
+    try {
+      const result = await this.sendRequest(this.testEndpoints[0], port);
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 执行性能测试
+   */
+  private async runPerformanceTest(
+    config: FrameworkConfig,
+    testDuration: number
+  ): Promise<{
+    totalRequests: number;
+    averageLatency: number;
+    minLatency: number;
+    maxLatency: number;
+    p95Latency: number;
+    errorRate: number;
+  }> {
+    console.log(`🔥 开始 ${config.displayName} 性能测试 (${testDuration}秒)...`);
+
+    const testDurationMs = testDuration * 1000;
+    const startTime = performance.now();
+    const endTime = startTime + testDurationMs;
+
+    let totalRequests = 0;
+    let successRequests = 0;
+    let errorRequests = 0;
+    const latencies: number[] = [];
+    const concurrency = 20;
+
+    const sendConcurrentRequests = async () => {
+      const batchSize = 50;
+      let batch: Promise<{ latency: number; success: boolean }>[] = [];
+
+      while (performance.now() < endTime) {
+        const endpoint = this.testEndpoints[Math.floor(Math.random() * this.testEndpoints.length)];
+        batch.push(this.sendRequest(endpoint, config.port));
+
+        if (batch.length >= batchSize) {
+          try {
+            const results = await Promise.all(batch);
+            results.forEach((result) => {
+              totalRequests++;
+              if (result.success) {
+                successRequests++;
+                latencies.push(result.latency);
+              } else {
+                errorRequests++;
+              }
+            });
+            batch = [];
+
+            if (totalRequests % 1000 === 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1));
+            }
+          } catch (error) {
+            for (const requestPromise of batch) {
+              try {
+                const result = await requestPromise;
+                totalRequests++;
+                if (result.success) {
+                  successRequests++;
+                  latencies.push(result.latency);
+                } else {
+                  errorRequests++;
+                }
+              } catch {
+                totalRequests++;
+                errorRequests++;
+              }
+            }
+            batch = [];
+          }
+        }
+
+        const currentTime = performance.now();
+        const progress = (currentTime - startTime) / testDurationMs;
+        const delayMs = progress > 0.8 ? 2 : progress > 0.5 ? 1 : 0;
+
+        if (delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+      }
+
+      if (batch.length > 0) {
+        try {
+          const results = await Promise.all(batch);
+          results.forEach((result) => {
+            totalRequests++;
+            if (result.success) {
+              successRequests++;
+              latencies.push(result.latency);
+            } else {
+              errorRequests++;
+            }
+          });
+        } catch (error) {
+          for (const requestPromise of batch) {
+            try {
+              const result = await requestPromise;
+              totalRequests++;
+              if (result.success) {
+                successRequests++;
+                latencies.push(result.latency);
+              } else {
+                errorRequests++;
+              }
+            } catch {
+              totalRequests++;
+              errorRequests++;
+            }
+          }
+        }
+      }
+    };
+
+    const testPromises = Array.from({ length: concurrency }, () => sendConcurrentRequests());
+
+    try {
+      await Promise.all(testPromises);
+    } catch (error) {
+      console.warn(`⚠️  ${config.displayName} 测试中出现部分错误: ${error}`);
+    }
+
+    if (latencies.length === 0) {
+      throw new Error(`${config.displayName} 测试失败：没有成功的请求`);
+    }
+
+    latencies.sort((a, b) => a - b);
+    const averageLatency = latencies.reduce((sum, lat) => sum + lat, 0) / latencies.length;
+    const minLatency = latencies[0];
+    const maxLatency = latencies[latencies.length - 1];
+    const p95Latency = latencies[Math.floor(latencies.length * 0.95)];
+    const errorRate = totalRequests > 0 ? (errorRequests / totalRequests) * 100 : 0;
+
+    console.log(
+      `📊 ${
+        config.displayName
+      } 完成 ${totalRequests} 个请求 (成功: ${successRequests}, 错误: ${errorRequests}, 错误率: ${errorRate.toFixed(
+        2
+      )}%)`
+    );
+
+    return {
+      totalRequests: successRequests,
+      averageLatency,
+      minLatency,
+      maxLatency,
+      p95Latency,
+      errorRate,
+    };
+  }
+
+  /**
+   * 测试单个框架
+   */
+  private async testFramework(
+    config: FrameworkConfig,
+    testDuration: number
+  ): Promise<PerformanceMetrics | null> {
+    try {
+      console.log(`🔄 测试 ${config.displayName} (端口: ${config.port})`);
+
+      // 健康检查
+      if (!(await this.healthCheck(config.port))) {
+        throw new Error(`服务不可用，端口 ${config.port} 无响应`);
+      }
+
+      console.log(`✅ ${config.displayName} 服务可用，开始测试`);
+
+      // 预热
+      try {
+        await this.sendRequest(this.testEndpoints[0], config.port);
+        console.log(`🔥 ${config.displayName} 预热完成`);
+      } catch (warmupError) {
+        console.warn(`⚠️  ${config.displayName} 预热失败，继续测试`);
+      }
+
+      // 性能测试
+      const testStart = performance.now();
+      const testResults = await this.runPerformanceTest(config, testDuration);
+      const actualTestDuration = performance.now() - testStart;
+
+      const requestsPerSecond = testResults.totalRequests / (actualTestDuration / 1000);
+
+      if (testResults.totalRequests < 10) {
+        throw new Error(`测试请求数过少: ${testResults.totalRequests}`);
+      }
+
+      if (testResults.errorRate > 50) {
+        throw new Error(`错误率过高: ${testResults.errorRate.toFixed(2)}%`);
+      }
+
+      return {
+        framework: config.displayName,
+        coldStartTime: 0, // 手动启动模式下为0
+        totalRequests: testResults.totalRequests,
+        requestsPerSecond,
+        averageLatency: testResults.averageLatency,
+        minLatency: testResults.minLatency,
+        maxLatency: testResults.maxLatency,
+        p95Latency: testResults.p95Latency,
+        testDuration: actualTestDuration,
+        errorRate: testResults.errorRate,
+        memoryUsage: this.getMemoryUsage(),
+      };
+    } catch (error) {
+      console.error(
+        `❌ ${config.displayName} 测试失败:`,
+        error instanceof Error ? error.message : error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * 获取内存使用情况
+   */
+  private getMemoryUsage() {
+    const usage = process.memoryUsage();
+    return {
+      heapUsed: Math.round((usage.heapUsed / 1024 / 1024) * 100) / 100,
+      heapTotal: Math.round((usage.heapTotal / 1024 / 1024) * 100) / 100,
+      external: Math.round((usage.external / 1024 / 1024) * 100) / 100,
+      rss: Math.round((usage.rss / 1024 / 1024) * 100) / 100,
+    };
   }
 
   /**
@@ -204,49 +563,64 @@ class BatchFrameworkTester {
   }
 
   /**
-   * 运行K6测试（如果启用）
+   * 打印对比报告
    */
-  private async runK6Tests(): Promise<void> {
-    if (!this.config.includeK6) return;
-
-    console.log("\n🔧 运行K6性能测试...");
-
-    try {
-      const { spawn } = require("child_process");
-
-      // 运行k6测试
-      const k6Process = spawn("k6", ["run", "k6-test-config.js"], {
-        stdio: "pipe",
-      });
-
-      return new Promise((resolve, reject) => {
-        let output = "";
-
-        k6Process.stdout?.on("data", (data: Buffer) => {
-          const text = data.toString();
-          output += text;
-          process.stdout.write(text);
-        });
-
-        k6Process.stderr?.on("data", (data: Buffer) => {
-          const text = data.toString();
-          output += text;
-          process.stderr.write(text);
-        });
-
-        k6Process.on("close", (code: number) => {
-          if (code === 0) {
-            console.log("✅ K6测试完成");
-            resolve();
-          } else {
-            console.log(`❌ K6测试失败，退出码: ${code}`);
-            reject(new Error(`K6测试失败，退出码: ${code}`));
-          }
-        });
-      });
-    } catch (error) {
-      console.error("❌ K6测试执行失败:", error);
+  private printComparisonReport(results: PerformanceMetrics[]): void {
+    if (results.length === 0) {
+      console.log("❌ 没有测试结果可供对比");
+      return;
     }
+
+    console.log(`\n${"=".repeat(80)}`);
+    console.log("🏆 框架性能对比报告");
+    console.log(`${"=".repeat(80)}`);
+
+    const sortedByRps = [...results].sort((a, b) => b.requestsPerSecond - a.requestsPerSecond);
+
+    console.log("\n🚀 请求数/秒 (RPS) 排名:");
+    console.log("-".repeat(50));
+    sortedByRps.forEach((result, index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`;
+      console.log(
+        `${medal} ${result.framework.padEnd(15)} ${result.requestsPerSecond
+          .toFixed(2)
+          .padStart(8)} RPS`
+      );
+    });
+
+    const sortedByLatency = [...results].sort((a, b) => a.averageLatency - b.averageLatency);
+
+    console.log("\n⏱️  平均延迟排名 (越低越好):");
+    console.log("-".repeat(50));
+    sortedByLatency.forEach((result, index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`;
+      console.log(
+        `${medal} ${result.framework.padEnd(15)} ${result.averageLatency.toFixed(2).padStart(8)} ms`
+      );
+    });
+
+    const sortedByColdStart = [...results].sort((a, b) => a.coldStartTime - b.coldStartTime);
+
+    console.log("\n❄️  冷启动时间排名 (越低越好):");
+    console.log("-".repeat(50));
+    sortedByColdStart.forEach((result, index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`;
+      console.log(
+        `${medal} ${result.framework.padEnd(15)} ${result.coldStartTime.toFixed(2).padStart(8)} ms`
+      );
+    });
+
+    console.log(`\n${"=".repeat(80)}`);
+    console.log("📝 测试总结:");
+    console.log(`   • 测试框架数量: ${results.length}`);
+    console.log(`   • 最高RPS: ${Math.max(...results.map((r) => r.requestsPerSecond)).toFixed(2)}`);
+    console.log(
+      `   • 最低延迟: ${Math.min(...results.map((r) => r.averageLatency)).toFixed(2)} ms`
+    );
+    console.log(
+      `   • 最快冷启动: ${Math.min(...results.map((r) => r.coldStartTime)).toFixed(2)} ms`
+    );
+    console.log(`${"=".repeat(80)}\n`);
   }
 
   /**
@@ -283,10 +657,30 @@ class BatchFrameworkTester {
     try {
       // 运行框架测试
       console.log("\n🧪 开始框架性能测试...");
-      const results = await this.tester.testAllFrameworks(
-        this.config.testDuration,
-        this.config.manualStart
-      );
+      const results: PerformanceMetrics[] = [];
+
+      for (const config of this.frameworkConfigs) {
+        console.log(`\n${"=".repeat(40)}`);
+        console.log(`🔄 测试 ${config.displayName}`);
+        console.log(`${"=".repeat(40)}`);
+
+        const result = await this.testFramework(config, this.config.testDuration);
+        if (result) {
+          results.push(result);
+          console.log(`\n📊 ${result.framework} 测试结果:`);
+          console.log(`   ❄️  冷启动时间:     ${result.coldStartTime.toFixed(2)} ms`);
+          console.log(`   📈  总请求数:       ${result.totalRequests} 个`);
+          console.log(`   🚀  请求数/秒:      ${result.requestsPerSecond.toFixed(2)} RPS`);
+          console.log(`   ⏱️   平均延迟:       ${result.averageLatency.toFixed(2)} ms`);
+          console.log(
+            `   📊  延迟范围:       ${result.minLatency.toFixed(2)} - ${result.maxLatency.toFixed(
+              2
+            )} ms`
+          );
+          console.log(`   🎯  P95延迟:        ${result.p95Latency.toFixed(2)} ms`);
+          console.log(`   ❌  错误率:         ${result.errorRate.toFixed(2)}%`);
+        }
+      }
 
       if (results.length === 0) {
         console.log("❌ 没有获得测试结果");
@@ -305,14 +699,9 @@ class BatchFrameworkTester {
       // 保存对比报告
       this.saveComparisonReport(results);
 
-      // 运行K6测试（如果启用）
-      if (this.config.includeK6) {
-        await this.runK6Tests();
-      }
-
       // 打印对比报告
       console.log("\n📊 测试完成！打印对比报告...");
-      this.tester.printComparisonReport(results);
+      this.printComparisonReport(results);
 
       console.log(`\n🎉 批量测试完成！所有结果已保存到: ${this.config.outputDir}`);
 
@@ -320,28 +709,40 @@ class BatchFrameworkTester {
     } catch (error) {
       console.error("❌ 批量测试执行失败:", error);
       throw error;
-    } finally {
-      // 清理资源（仅在自动启动模式下）
-      if (!this.config.manualStart) {
-        console.log("\n🧹 清理资源...");
-        await this.tester.stopAllServers();
-        console.log("✅ 资源清理完成");
-      } else {
-        console.log("\n⚠️  手动启动模式：请手动停止服务");
-      }
     }
   }
 }
 
 // 主执行函数
 async function main() {
+  // 解析命令行参数
+  const args = process.argv.slice(2);
+  let testDuration = 10;
+  let outputDir = "test-results/batch-test";
+
+  // 查找位置参数
+  for (let i = 0; i < args.length; i++) {
+    if (!args[i].startsWith("--") && !isNaN(Number(args[i]))) {
+      testDuration = parseInt(args[i]);
+      break;
+    }
+  }
+
+  // 查找第二个位置参数（输出目录）
+  for (let i = 0; i < args.length; i++) {
+    if (!args[i].startsWith("--") && Number.isNaN(Number(args[i]))) {
+      outputDir = args[i];
+      break;
+    }
+  }
+
   const config: BatchTestConfig = {
-    testDuration: process.argv[2] ? parseInt(process.argv[2]) : 10,
-    outputDir: process.argv[3] || "test-results/batch-test",
-    includeK6: process.argv.includes("--k6"),
-    saveDetailedResults: !process.argv.includes("--no-details"),
-    saveComparisonReport: !process.argv.includes("--no-report"),
-    manualStart: process.argv.includes("--manual"), // 新增：手动启动模式
+    testDuration,
+    outputDir,
+    includeK6: args.includes("--k6"),
+    saveDetailedResults: !args.includes("--no-details"),
+    saveComparisonReport: !args.includes("--no-report"),
+    manualStart: args.includes("--manual"),
   };
 
   const batchTester = new BatchFrameworkTester(config);
@@ -359,4 +760,4 @@ if (require.main === module) {
   main();
 }
 
-export { BatchFrameworkTester, BatchTestConfig };
+export { BatchFrameworkTester, BatchTestConfig, PerformanceMetrics };

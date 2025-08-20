@@ -1,6 +1,6 @@
 {
-  "framework": "Koa",
-  "timestamp": "2025-08-20T20:29:09.370Z",
+  "framework": "Elysia",
+  "timestamp": "2025-08-20T20:30:40.176Z",
   "testDuration": 5,
   "metrics": {
     "coldStart": {
@@ -12,31 +12,31 @@
     "requestsPerSecond": {
       "emoji": "⚡️",
       "name": "每秒请求数",
-      "value": "603.43 rps",
+      "value": "19518.48 rps",
       "description": "为瞬时流量而生 — 无需预热。"
     },
     "avgLatency": {
       "emoji": "📉",
       "name": "平均延迟",
-      "value": "1036.89 ms",
+      "value": "20.96 ms",
       "description": "压力之下依然迅捷。始终如一。"
     },
     "totalRequests": {
       "emoji": "🎯",
       "name": "总请求数",
-      "value": "3903 req / 5s",
+      "value": "98138 req / 5s",
       "description": "在5秒内完成的总请求数"
     },
     "performance": {
-      "minLatency": 283.6712499999994,
-      "maxLatency": 2509.398874999999,
-      "p95Latency": 1492.1612079999977,
-      "errorRate": 13.266666666666666,
+      "minLatency": 0.035957999999482126,
+      "maxLatency": 546.9120419999999,
+      "p95Latency": 108.99054200000046,
+      "errorRate": 0,
       "memoryUsage": {
-        "heapUsed": 11.19,
-        "heapTotal": 12.15,
-        "external": 2.99,
-        "rss": 138.95
+        "heapUsed": 31.62,
+        "heapTotal": 46.44,
+        "external": 26.28,
+        "rss": 142.89
       }
     }
   }
