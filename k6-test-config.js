@@ -61,8 +61,8 @@ let isFirstRequest = true;
 
 // 主测试函数
 export default function () {
-  const baseUrl = __ENV.BASE_URL || 'http://localhost:3000';
-  const framework = __ENV.FRAMEWORK || 'elysia';
+  const baseUrl = __ENV.BASE_URL || 'http://localhost:3005';
+  const framework = __ENV.FRAMEWORK || 'Vafast-Mini';
   
   // 测试端点配置
   const endpoints = [

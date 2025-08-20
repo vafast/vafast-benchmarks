@@ -84,10 +84,18 @@ const routes = defineRoutes([
     method: "GET",
     path: "/techempower/db",
     handler: (req) => {
-      const query = parseQuery(req);
-      const queries = query.get("queries") || undefined;
-      const result = simulateDatabaseQuery(queries);
-      return json(result);
+      try {
+        const query = parseQuery(req);
+        const queries = query.queries || undefined;
+        const result = simulateDatabaseQuery(queries);
+        return json(result);
+      } catch (error) {
+        throw new VafastError(error instanceof Error ? error.message : "Database query failed", {
+          status: 500,
+          type: "internal_error",
+          expose: true,
+        });
+      }
     },
   },
 
@@ -97,7 +105,7 @@ const routes = defineRoutes([
     path: "/techempower/updates",
     handler: (req) => {
       const query = parseQuery(req);
-      const queries = query.get("queries") || undefined;
+      const queries = query.queries || undefined;
       const result = simulateDatabaseUpdate(queries);
       return json(result);
     },
@@ -109,7 +117,7 @@ const routes = defineRoutes([
     path: "/techempower/complex-json",
     handler: (req) => {
       const query = parseQuery(req);
-      const depth = query.get("depth") || undefined;
+      const depth = query.depth || undefined;
       const result = simulateComplexJsonSerialization(depth);
       return json(result);
     },
@@ -174,8 +182,8 @@ const routes = defineRoutes([
           success: true,
           validatedBody: body,
           validatedQuery: {
-            page: query.get("page"),
-            limit: query.get("limit"),
+            page: query.page,
+            limit: query.limit,
           },
           timestamp: new Date().toISOString(),
         });
