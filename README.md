@@ -139,10 +139,7 @@ vafast-benchmarks/
 - **@hono/typebox-validator**: 0.2.0
 - **koa-bodyparser**: 4.4.1
 
-### 开发工具
-- **bun**: 1.2.20
-- **@types/node**: 20.10.0
-- **@types/express**: 4.17.21
+
 
 ### 测试环境
 - **Node.js**: 22.16.0
