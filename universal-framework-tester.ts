@@ -40,31 +40,31 @@ class UniversalFrameworkTester {
   // 公共测试端点配置
   private readonly commonTestEndpoints: TestEndpoint[] = [
     { path: "/techempower/json", method: "GET", description: "JSON序列化测试" },
-    // { path: "/techempower/plaintext", method: "GET", description: "纯文本响应测试" },
-    // { path: "/techempower/db?queries=1", method: "GET", description: "数据库查询模拟" },
-    // {
-    //   path: "/schema/validate",
-    //   method: "POST",
-    //   description: "Schema验证测试",
-    //   body: {
-    //     user: {
-    //       name: "Test User",
-    //       phone: "13800138000",
-    //       age: 25,
-    //       email: "test@example.com",
-    //       active: true,
-    //       tags: ["test", "user"],
-    //       preferences: {
-    //         theme: "light",
-    //         language: "zh-CN",
-    //       },
-    //     },
-    //     metadata: {
-    //       version: "1.0.0",
-    //       timestamp: new Date().toISOString(),
-    //     },
-    //   },
-    // },
+    { path: "/techempower/plaintext", method: "GET", description: "纯文本响应测试" },
+    { path: "/techempower/db?queries=1", method: "GET", description: "数据库查询模拟" },
+    {
+      path: "/schema/validate",
+      method: "POST",
+      description: "Schema验证测试",
+      body: {
+        user: {
+          name: "Test User",
+          phone: "13800138000",
+          age: 25,
+          email: "test@example.com",
+          active: true,
+          tags: ["test", "user"],
+          preferences: {
+            theme: "light",
+            language: "zh-CN",
+          },
+        },
+        metadata: {
+          version: "1.0.0",
+          timestamp: new Date().toISOString(),
+        },
+      },
+    },
   ];
 
   // 简化的框架配置
@@ -158,11 +158,11 @@ class UniversalFrameworkTester {
           });
       };
 
-      setTimeout(checkServerReady, 1000);
+      setTimeout(checkServerReady, 2000);
 
       setTimeout(() => {
         reject(new Error(`${config.displayName} 启动超时`));
-      }, 15000);
+      }, 25000);
 
       serverProcess.on("error", (error) => {
         reject(new Error(`${config.displayName} 启动失败: ${error.message}`));
