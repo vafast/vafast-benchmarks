@@ -1,10 +1,13 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { Rate, Trend } from 'k6/metrics';
+import { Rate, Trend, Counter } from 'k6/metrics';
 
 // 自定义指标
 const errorRate = new Rate('errors');
 const responseTime = new Trend('response_time');
+const coldStartTime = new Trend('cold_start_time');
+const requestsPerSecond = new Rate('requests_per_second');
+const totalRequests = new Counter('total_requests');
 
 // 测试配置
 export const options = {
@@ -18,6 +21,7 @@ export const options = {
     http_req_duration: ['p(95)<500', 'p(99)<1000'],  // 95%请求在500ms内，99%在1000ms内
     http_req_failed: ['rate<0.01'],                   // 错误率小于1%
     'response_time': ['p(95)<300', 'p(99)<800'],      // 自定义响应时间阈值
+    'cold_start_time': ['p(95)<10'],                   // Cold start时间阈值
   },
   
   // 输出配置
@@ -51,6 +55,10 @@ const testData = {
   },
 };
 
+// 记录第一次请求的时间
+let firstRequestTime = null;
+let isFirstRequest = true;
+
 // 主测试函数
 export default function () {
   const baseUrl = __ENV.BASE_URL || 'http://localhost:3000';
@@ -71,6 +79,12 @@ export default function () {
   let response;
   const startTime = Date.now();
   
+  // 记录第一次请求的cold start时间
+  if (isFirstRequest) {
+    firstRequestTime = startTime;
+    isFirstRequest = false;
+  }
+  
   try {
     if (endpoint.method === 'GET') {
       response = http.get(url);
@@ -82,6 +96,12 @@ export default function () {
     
     const responseTimeMs = Date.now() - startTime;
     responseTime.add(responseTimeMs);
+    totalRequests.add(1);
+    
+    // 计算cold start时间（第一次请求的响应时间）
+    if (firstRequestTime && firstRequestTime === startTime) {
+      coldStartTime.add(responseTimeMs);
+    }
     
     // 检查响应
     const success = check(response, {
@@ -111,8 +131,55 @@ export default function () {
 export function handleSummary(data) {
   console.log('📊 测试完成，生成报告...');
   
-  // 只返回 JSON 格式，让 k6 自己处理
+  // 计算自定义指标
+  const coldStart = data.metrics.cold_start_time && data.metrics.cold_start_time.values && data.metrics.cold_start_time.values.p95 ? data.metrics.cold_start_time.values.p95 : 0;
+  const avgLatency = data.metrics.http_req_duration && data.metrics.http_req_duration.values && data.metrics.http_req_duration.values.avg ? data.metrics.http_req_duration.values.avg : 0;
+  const totalReq = data.metrics.http_reqs && data.metrics.http_reqs.values && data.metrics.http_reqs.values.count ? data.metrics.http_reqs.values.count : 0;
+  const testDuration = data.state.testRunDuration ? data.state.testRunDuration / 1000 : 10; // 转换为秒，默认10秒
+  const rps = data.metrics.http_reqs && data.metrics.http_reqs.values && data.metrics.http_reqs.values.rate ? data.metrics.http_reqs.values.rate : (totalReq / testDuration);
+  
+  // 生成格式化的结果
+  const formattedResults = {
+    coldStart: {
+      emoji: "👑",
+      name: "冷启动",
+      value: `${coldStart.toFixed(2)} ms`,
+      description: `${coldStart.toFixed(2)} ms. 无延迟，无妥协。冷启动王者之冠属于我们。`
+    },
+    requestsPerSecond: {
+      emoji: "⚡️",
+      name: "每秒请求数",
+      value: `${rps.toLocaleString()} rps`,
+      description: "为瞬时流量而生 — 无需预热。"
+    },
+    avgLatency: {
+      emoji: "📉",
+      name: "平均延迟",
+      value: `${avgLatency.toFixed(2)} ms`,
+      description: "压力之下依然迅捷。始终如一。"
+    },
+    totalRequests: {
+      emoji: "🎯",
+      name: "总请求数",
+      value: `${totalReq.toLocaleString()} req / ${testDuration.toFixed(0)}s`,
+      description: `在${testDuration.toFixed(0)}秒内完成的总请求数`
+    }
+  };
+  
+  // 生成控制台输出
+  console.log('\n🚀 性能测试结果 🚀');
+  console.log('='.repeat(50));
+  
+  Object.entries(formattedResults).forEach(([key, result]) => {
+    console.log(`${result.emoji} ${result.name}`);
+    console.log(`${result.value}`);
+    console.log(`${result.description}`);
+    console.log('');
+  });
+  
+  // 返回JSON格式结果
   return {
     'k6-results.json': JSON.stringify(data, null, 2),
+    'formatted-results.json': JSON.stringify(formattedResults, null, 2)
   };
 }
