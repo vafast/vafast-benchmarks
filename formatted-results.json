@@ -8,7 +8,7 @@
   "requestsPerSecond": {
     "emoji": "⚡️",
     "name": "每秒请求数",
-    "value": "19041.859271674333 rps",
+    "value": "20067.362180564363 rps",
     "description": "为瞬时流量而生 — 无需预热。"
   },
   "avgLatency": {
@@ -20,7 +20,7 @@
   "totalRequests": {
     "emoji": "🎯",
     "name": "总请求数",
-    "value": "190426 req / 10s",
+    "value": "200685 req / 10s",
     "description": "在10秒内完成的总请求数"
   }
 }
