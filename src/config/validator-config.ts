@@ -2,7 +2,7 @@
  * 复杂验证器测试配置
  */
 
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { Hono } from "hono";
 import { tbValidator } from "@hono/typebox-validator";
 import { createRouteHandler } from "vafast";
@@ -38,6 +38,29 @@ export const TestSchema = Type.Object({
   version: Type.String({ maxLength: 20 }),
 });
 
+// 使用 Elysia 原生 Schema，避免与 TypeBox TSchema 的符号冲突
+const ElysiaSchema = t.Object({
+  user: t.Object({
+    id: t.String(),
+    name: t.String(),
+    email: t.String(),
+    age: t.Number(),
+    profile: t.Object({
+      bio: t.Optional(t.String()),
+      avatar: t.Optional(t.String()),
+      preferences: t.Object({
+        theme: t.Union([t.Literal("light"), t.Literal("dark")]),
+        notifications: t.Boolean(),
+        language: t.String(),
+      }),
+    }),
+    tags: t.Array(t.String()),
+    metadata: t.Record(t.String(), t.Any()),
+  }),
+  timestamp: t.String(),
+  version: t.String(),
+});
+
 // vafast 原生验证器路由
 export const vafastValidatorRoutes = [
   {
@@ -61,7 +84,7 @@ export const elysiaValidatorApp = new Elysia().post(
     return { message: "Hello World", data: { body } };
   },
   {
-    body: TestSchema,
+    body: ElysiaSchema,
   }
 );
 
@@ -76,11 +99,11 @@ export const honoValidatorApp = new Hono().post("/", tbValidator("json", TestSch
 export const expressValidatorApp = express();
 expressValidatorApp.use(express.json());
 
+// 预编译：避免每次请求重复编译 TypeBox 校验器
+const expressBodyValidator = TypeCompiler.Compile(TestSchema);
+
 expressValidatorApp.post("/", (req, res) => {
   try {
-    // 验证 body
-    // 修复：预编译验证器，避免每次请求都重新编译
-    const expressBodyValidator = TypeCompiler.Compile(TestSchema);
     const bodyValid = expressBodyValidator.Check(req.body);
     if (!bodyValid) {
       const bodyErrors = expressBodyValidator.Errors(req.body);
@@ -101,10 +124,11 @@ export const koaValidatorApp = new Koa();
 const koaValidatorRouter = new Router();
 koaValidatorApp.use(bodyParser());
 
+// 预编译：避免每次请求重复编译 TypeBox 校验器
+const koaBodyValidator = TypeCompiler.Compile(TestSchema);
+
 koaValidatorRouter.post("/", async (ctx) => {
   try {
-    // 验证 body
-    const koaBodyValidator = TypeCompiler.Compile(TestSchema);
     const requestBody = (ctx.request as any).body;
     const bodyValid = koaBodyValidator.Check(requestBody);
     if (!bodyValid) {
