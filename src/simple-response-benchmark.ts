@@ -30,10 +30,17 @@ import {
   BenchmarkResult,
 } from "./utils/report-utils.js";
 
+// 测试结果接口（与 run-all-benchmarks.ts 保持一致）
+interface TestResult {
+  name: string;
+  rps: number;
+  duration: number;
+}
+
 // ============================================================================
 // 简单响应性能测试
 // ============================================================================
-async function runSimpleResponseBenchmark() {
+async function runSimpleResponseBenchmark(): Promise<TestResult[]> {
   console.log("🚀 开始简单响应性能测试");
   console.log("=".repeat(80));
   console.log("💡 测试目标:");
@@ -107,6 +114,15 @@ async function runSimpleResponseBenchmark() {
   generateUsageRecommendations();
 
   console.log("\n📊 简单响应性能测试完成");
+
+  // 转换并返回测试结果
+  const testResults: TestResult[] = simpleResults.map((result) => ({
+    name: result.name,
+    rps: result.rps,
+    duration: result.duration,
+  }));
+
+  return testResults;
 }
 
 // 导出函数供其他模块使用

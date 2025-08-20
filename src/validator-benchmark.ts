@@ -22,10 +22,17 @@ import {
 // 导入报告函数
 import { generateValidatorReport, BenchmarkResult } from "./utils/report-utils.js";
 
+// 测试结果接口（与 run-all-benchmarks.ts 保持一致）
+interface TestResult {
+  name: string;
+  rps: number;
+  duration: number;
+}
+
 // ============================================================================
 // 验证器性能测试
 // ============================================================================
-async function runValidatorBenchmark() {
+async function runValidatorBenchmark(): Promise<TestResult[]> {
   console.log("🚀 开始验证器性能测试");
   console.log("=".repeat(80));
   console.log("💡 测试目标:");
@@ -37,9 +44,7 @@ async function runValidatorBenchmark() {
   logMemoryUsage("测试开始前");
 
   console.log(
-    "\n📋 测试配置: " +
-      TEST_CONFIG.validatorIterations.toLocaleString() +
-      " 次请求, 包含 TypeBox 验证器"
+    "\n📋 测试配置: " + TEST_CONFIG.iterations.toLocaleString() + " 次请求, 包含 TypeBox 验证器"
   );
 
   console.log("\n🔍 验证器性能测试结果:");
@@ -83,7 +88,7 @@ async function runValidatorBenchmark() {
         headers: expressRes.headers,
       });
     },
-    TEST_CONFIG.validatorIterations
+    TEST_CONFIG.iterations
   );
 
   const vafastValidatorResult = await benchmark(
@@ -92,7 +97,7 @@ async function runValidatorBenchmark() {
       const route = vafastValidatorRoutes[0]!;
       return await route.handler(req);
     },
-    TEST_CONFIG.validatorIterations
+    TEST_CONFIG.iterations
   );
 
   const elysiaValidatorResult = await benchmark(
@@ -100,7 +105,7 @@ async function runValidatorBenchmark() {
     async (req) => {
       return await elysiaValidatorApp.handle(req);
     },
-    TEST_CONFIG.validatorIterations
+    TEST_CONFIG.iterations
   );
 
   const honoValidatorResult = await benchmark(
@@ -108,7 +113,7 @@ async function runValidatorBenchmark() {
     async (req) => {
       return await honoValidatorApp.fetch(req);
     },
-    TEST_CONFIG.validatorIterations
+    TEST_CONFIG.iterations
   );
 
   // 记录测试后内存使用
@@ -133,6 +138,15 @@ async function runValidatorBenchmark() {
   generateValidatorReport(validatorResults);
 
   console.log("\n📊 验证器性能测试完成");
+
+  // 转换并返回测试结果
+  const testResults: TestResult[] = validatorResults.map((result) => ({
+    name: result.name,
+    rps: result.rps,
+    duration: result.duration,
+  }));
+
+  return testResults;
 }
 
 // 导出函数供其他模块使用
