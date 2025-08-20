@@ -132,7 +132,7 @@ export const vafastRoutesDirect = [
     handler: async (req) => {
       // 与其它框架保持一致：解析 JSON 请求体
       const body = await parseBody(req);
-
+      console.log(body, "body21212");
       return json({ message: simpleMessage, data: body });
     },
   },
@@ -143,7 +143,8 @@ export const vafastRoutesFactory = [
   {
     method: "POST",
     path: "/",
-    handler: createRouteHandler({}, async ({ body }) => {
+    handler: createRouteHandler(async ({ body }) => {
+      console.log(body, "body2eee1");
       return { message: simpleMessage, data: body };
     }),
   },
