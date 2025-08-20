@@ -140,7 +140,9 @@ const server = new Server(routes);
 console.log(`⚡ Vafast is running at http://localhost:3005`);
 console.log("📊 Available benchmark endpoints:");
 console.log("=== Schema 验证接口 ===");
-console.log("  POST /schema/validate               - 综合验证接口 (使用 vafast createRouteHandler + TypeBox)");
+console.log(
+  "  POST /schema/validate               - 综合验证接口 (使用 vafast createRouteHandler + TypeBox)"
+);
 
 console.log("=== TechEmpower 风格测试接口 ===");
 console.log("  GET  /techempower/json                          - JSON序列化测试");
@@ -148,7 +150,9 @@ console.log("  GET  /techempower/plaintext                     - 纯文本测试
 console.log("  GET  /techempower/db                            - 数据库查询测试");
 console.log("  GET  /techempower/updates                       - 数据库更新测试");
 console.log("  GET  /techempower/complex-json                  - 复杂对象序列化测试");
-console.log("  POST /techempower/batch-process                 - 批量数据处理测试 (使用 vafast createRouteHandler + TypeBox)");
+console.log(
+  "  POST /techempower/batch-process                 - 批量数据处理测试 (使用 vafast createRouteHandler + TypeBox)"
+);
 
 // 导出服务器
 export default {
