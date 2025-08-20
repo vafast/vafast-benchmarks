@@ -73,12 +73,11 @@ export const honoValidatorApp = new Hono().post("/", tbValidator("json", TestSch
 export const expressValidatorApp = express();
 expressValidatorApp.use(express.json());
 
-// 修复：预编译验证器，避免每次请求都重新编译
-export const expressBodyValidator = TypeCompiler.Compile(TestSchema);
-
 expressValidatorApp.post("/", (req, res) => {
   try {
     // 验证 body
+    // 修复：预编译验证器，避免每次请求都重新编译
+    const expressBodyValidator = TypeCompiler.Compile(TestSchema);
     const bodyValid = expressBodyValidator.Check(req.body);
     if (!bodyValid) {
       const bodyErrors = expressBodyValidator.Errors(req.body);
