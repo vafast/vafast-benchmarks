@@ -8,6 +8,9 @@
     "start": "bun run src/simple-response-benchmark.ts",
     "benchmark:simple": "bun run src/simple-response-benchmark.ts",
     "benchmark:validator": "bun run src/validator-benchmark.ts",
+    "benchmark:k6": "bun run k6-benchmark-runner.ts",
+    "k6:quick": "k6 run k6-quick-test.js",
+    "k6:full": "k6 run k6-test-config.js",
     "dev": "bun --watch src/simple-response-benchmark.ts",
     "build": "bun build src/simple-response-benchmark.ts --target=bun --outdir=dist",
     "test": "bun test"
