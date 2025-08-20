@@ -6,10 +6,12 @@
   "type": "module",
   "scripts": {
     "start:servers": "bun run start-servers.ts",
-    "k6:full": "k6 run k6-test-config.js",
     "dev": "bun --watch src/simple-response-benchmark.ts",
     "build": "bun build src/simple-response-benchmark.ts --target=bun --outdir=dist",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:single": "k6 run k6-test-config.js",
+    "test:batch": "bun run batch-framework-tester.ts",
+    "demo": "bun run demo-batch-test.ts"
   },
   "dependencies": {
     "@hono/typebox-validator": "^0.2.0",

@@ -1,0 +1,211 @@
+{
+  "testInfo": {
+    "timestamp": "2025-08-20T19:40:51.835Z",
+    "testDuration": 5,
+    "totalFrameworks": 6,
+    "outputDirectory": "test-results/demo-test",
+    "note": "这是演示数据，用于测试批量测试器功能"
+  },
+  "results": [
+    {
+      "framework": "elysia",
+      "coldStartTime": 0.517624757915339,
+      "totalRequests": 93746,
+      "requestsPerSecond": 18749.359635653986,
+      "averageLatency": 0.13886786470358872,
+      "minLatency": 0.06943393235179436,
+      "maxLatency": 0.4166035941107662,
+      "p95Latency": 0.2083017970553831,
+      "errorRate": 0.0479575858930976,
+      "memoryUsage": {
+        "heapUsed": 41.0889323419855,
+        "heapTotal": 59.33698199319771,
+        "external": 14.638750801812446,
+        "rss": 118.84800111427414
+      }
+    },
+    {
+      "framework": "hono",
+      "coldStartTime": 0.976735335873032,
+      "totalRequests": 107541,
+      "requestsPerSecond": 21508.2480976253,
+      "averageLatency": 0.15519277231512987,
+      "minLatency": 0.07759638615756494,
+      "maxLatency": 0.46557831694538965,
+      "p95Latency": 0.23278915847269482,
+      "errorRate": 0.06465514890652722,
+      "memoryUsage": {
+        "heapUsed": 60.2359570697531,
+        "heapTotal": 60.94770464334326,
+        "external": 26.084173999813537,
+        "rss": 106.8907619656919
+      }
+    },
+    {
+      "framework": "express",
+      "coldStartTime": 1.1225322181927744,
+      "totalRequests": 103410,
+      "requestsPerSecond": 20682.056086144643,
+      "averageLatency": 0.26169563494877307,
+      "minLatency": 0.13084781747438654,
+      "maxLatency": 0.7850869048463192,
+      "p95Latency": 0.3925434524231596,
+      "errorRate": 0.02320507139610638,
+      "memoryUsage": {
+        "heapUsed": 41.69721235106576,
+        "heapTotal": 81.49996342081837,
+        "external": 10.155804906232115,
+        "rss": 127.45508051247602
+      }
+    },
+    {
+      "framework": "koa",
+      "coldStartTime": 1.1608568702542725,
+      "totalRequests": 111317,
+      "requestsPerSecond": 22263.596107237227,
+      "averageLatency": 0.3446074514981803,
+      "minLatency": 0.17230372574909014,
+      "maxLatency": 1.0338223544945409,
+      "p95Latency": 0.5169111772472704,
+      "errorRate": 0.05128037796727472,
+      "memoryUsage": {
+        "heapUsed": 52.034256428281886,
+        "heapTotal": 103.68139145777269,
+        "external": 27.34581721825178,
+        "rss": 103.7446143480332
+      }
+    },
+    {
+      "framework": "vafast-mini",
+      "coldStartTime": 1.5932120012669346,
+      "totalRequests": 128902,
+      "requestsPerSecond": 25780.448691122325,
+      "averageLatency": 0.3342841965304628,
+      "minLatency": 0.1671420982652314,
+      "maxLatency": 1.0028525895913885,
+      "p95Latency": 0.5014262947956942,
+      "errorRate": 0.07574350909099081,
+      "memoryUsage": {
+        "heapUsed": 69.1108930184771,
+        "heapTotal": 66.59229150199494,
+        "external": 10.228488482272187,
+        "rss": 115.48779355802773
+      }
+    },
+    {
+      "framework": "vafast",
+      "coldStartTime": 1.7331352254245171,
+      "totalRequests": 143733,
+      "requestsPerSecond": 28746.76013879309,
+      "averageLatency": 0.42168336983625,
+      "minLatency": 0.210841684918125,
+      "maxLatency": 1.26505010950875,
+      "p95Latency": 0.632525054754375,
+      "errorRate": 0.026566083235806115,
+      "memoryUsage": {
+        "heapUsed": 42.46675784962973,
+        "heapTotal": 90.02880246779414,
+        "external": 10.119291976453628,
+        "rss": 87.29781100721254
+      }
+    }
+  ],
+  "rankings": {
+    "byRPS": [
+      {
+        "rank": 1,
+        "framework": "vafast",
+        "rps": 28746.76013879309
+      },
+      {
+        "rank": 2,
+        "framework": "vafast-mini",
+        "rps": 25780.448691122325
+      },
+      {
+        "rank": 3,
+        "framework": "koa",
+        "rps": 22263.596107237227
+      },
+      {
+        "rank": 4,
+        "framework": "hono",
+        "rps": 21508.2480976253
+      },
+      {
+        "rank": 5,
+        "framework": "express",
+        "rps": 20682.056086144643
+      },
+      {
+        "rank": 6,
+        "framework": "elysia",
+        "rps": 18749.359635653986
+      }
+    ],
+    "byLatency": [
+      {
+        "rank": 1,
+        "framework": "elysia",
+        "latency": 0.13886786470358872
+      },
+      {
+        "rank": 2,
+        "framework": "hono",
+        "latency": 0.15519277231512987
+      },
+      {
+        "rank": 3,
+        "framework": "express",
+        "latency": 0.26169563494877307
+      },
+      {
+        "rank": 4,
+        "framework": "vafast-mini",
+        "latency": 0.3342841965304628
+      },
+      {
+        "rank": 5,
+        "framework": "koa",
+        "latency": 0.3446074514981803
+      },
+      {
+        "rank": 6,
+        "framework": "vafast",
+        "latency": 0.42168336983625
+      }
+    ],
+    "byColdStart": [
+      {
+        "rank": 1,
+        "framework": "elysia",
+        "coldStart": 0.517624757915339
+      },
+      {
+        "rank": 2,
+        "framework": "hono",
+        "coldStart": 0.976735335873032
+      },
+      {
+        "rank": 3,
+        "framework": "express",
+        "coldStart": 1.1225322181927744
+      },
+      {
+        "rank": 4,
+        "framework": "koa",
+        "coldStart": 1.1608568702542725
+      },
+      {
+        "rank": 5,
+        "framework": "vafast-mini",
+        "coldStart": 1.5932120012669346
+      },
+      {
+        "rank": 6,
+        "framework": "vafast",
+        "coldStart": 1.7331352254245171
+      }
+    ]
+  }
+}
