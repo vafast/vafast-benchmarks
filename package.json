@@ -1,16 +1,18 @@
 {
   "name": "vafast-benchmarks",
   "version": "1.0.0",
-  "description": "综合框架性能测试 - 对比主流框架与 vafast 原生框架，集成 k6 性能测试工具",
+  "description": "综合框架性能测试 - 对比主流框架与 vafast 原生框架，集成 k6 性能测试工具，支持冷启动性能测试",
   "main": "comprehensive-benchmark.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/simple-response-benchmark.ts",
-    "build": "bun build src/simple-response-benchmark.ts --target=bun --outdir=dist",
-    "test:single": "k6 run k6-test-config.js",
     "start:servers": "bun run start-servers.ts",
-    "test:k6:peak": "node run-k6-tests.js peak",
-    "test:k6:quick": "node run-k6-tests.js quick"
+    "test:all": "node run-k6-tests.js",
+    "test:elysia": "node run-k6-tests.js elysia",
+    "test:vafast": "node run-k6-tests.js vafast",
+    "test:vafast-mini": "node run-k6-tests.js vafast-mini",
+    "test:express": "node run-k6-tests.js express",
+    "test:koa": "node run-k6-tests.js koa",
+    "test:hono": "node run-k6-tests.js hono"
   },
   "dependencies": {
     "@hono/typebox-validator": "^0.2.0",
@@ -40,7 +42,9 @@
     "hono",
     "express",
     "vafast",
-    "k6"
+    "k6",
+    "cold-start",
+    "performance-testing"
   ],
   "author": "Your Name",
   "license": "MIT"
