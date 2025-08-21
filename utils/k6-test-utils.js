@@ -33,7 +33,7 @@ export function log(message, color = 'reset') {
  */
 export function logHeader(title) {
   log('\n' + '='.repeat(60), 'bright');
-  log(`  ${title}`, 'cyan');
+  log(`${title}`, 'cyan');
   log('='.repeat(60), 'bright');
 }
 
@@ -193,6 +193,15 @@ export function generateReport(results) {
 }
 
 /**
+ * 等待指定时间
+ * @param {number} ms - 等待毫秒数
+ * @returns {Promise} Promise对象
+ */
+export function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * 检查k6是否已安装
  * @returns {Promise<boolean>} k6是否已安装
  */
@@ -210,10 +219,145 @@ export async function checkK6Installation() {
 }
 
 /**
- * 等待指定时间
- * @param {number} ms - 等待毫秒数
- * @returns {Promise} Promise对象
+ * 验证测试类型参数
+ * @param {Array} testTypes - 传入的测试类型数组
+ * @param {Object} testConfigs - 测试配置对象
+ * @returns {Object} 验证结果 {valid: boolean, validTypes: Array, message: string}
  */
-export function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+export function validateTestTypes(testTypes, testConfigs) {
+  if (testTypes.length === 0) {
+    const message = '请选择要运行的测试类型:';
+    const availableTypes = Object.keys(testConfigs).map(key => {
+      const config = testConfigs[key];
+      return `  ${key}: ${config.name} - ${config.description}`;
+    }).join('\n');
+    const example = '\n示例: node run-k6-tests.js peak quick';
+    
+    return {
+      valid: false,
+      validTypes: [],
+      message: `${message}\n${availableTypes}${example}`
+    };
+  }
+
+  const validTestTypes = testTypes.filter(type => testConfigs[type]);
+  
+  if (validTestTypes.length === 0) {
+    return {
+      valid: false,
+      validTypes: [],
+      message: '❌ 无效的测试类型'
+    };
+  }
+
+  return {
+    valid: true,
+    validTypes: validTestTypes,
+    message: `🎯 即将测试: ${validTestTypes.join(', ')}`
+  };
+}
+
+/**
+ * 检查框架服务状态
+ * @param {Array} frameworks - 框架配置数组
+ * @returns {Promise<Object>} 检查结果 {available: Array, unavailable: Array, message: string}
+ */
+export async function checkFrameworkServices(frameworks) {
+  logSubHeader('检查框架服务状态');
+  
+  const available = [];
+  const unavailable = [];
+  
+  for (const framework of frameworks) {
+    const isAvailable = await checkService(framework);
+    if (isAvailable) {
+      log(`✅ ${framework.name} (端口 ${framework.port}) - 可用`, 'green');
+      available.push(framework);
+    } else {
+      log(`❌ ${framework.name} (端口 ${framework.port}) - 不可用`, 'red');
+      unavailable.push(framework);
+    }
+  }
+
+  let message = '';
+  if (available.length === 0) {
+    message = '❌ 没有可用的框架服务\n请先启动框架服务: bun run start-servers';
+  } else if (unavailable.length > 0) {
+    message = `⚠️  ${unavailable.length} 个服务不可用，${available.length} 个服务可用`;
+  } else {
+    message = `✅ 所有 ${available.length} 个服务都可用`;
+  }
+
+  return {
+    available,
+    unavailable,
+    message,
+    allAvailable: available.length > 0
+  };
+}
+
+/**
+ * 显示系统检查摘要
+ * @param {Object} k6Status - k6安装状态
+ * @param {Object} testValidation - 测试类型验证结果
+ * @param {Object} serviceStatus - 服务状态检查结果
+ */
+export function displaySystemCheckSummary(k6Status, testValidation, serviceStatus) {
+  logHeader('🔍 系统检查摘要');
+  
+  // k6状态
+  const k6Icon = k6Status ? '✅' : '❌';
+  const k6Text = k6Status ? '已安装' : '未安装';
+  log(`${k6Icon} k6 工具: ${k6Text}`, k6Status ? 'green' : 'red');
+  
+  // 测试类型
+  if (testValidation.valid) {
+    log(`✅ 测试类型: ${testValidation.validTypes.join(', ')}`, 'green');
+  } else {
+    log(`❌ 测试类型: 无效`, 'red');
+  }
+  
+  // 服务状态
+  const serviceIcon = serviceStatus.allAvailable ? '✅' : '⚠️';
+  const serviceText = serviceStatus.allAvailable 
+    ? `所有 ${serviceStatus.available.length} 个服务可用`
+    : `${serviceStatus.available.length} 个可用，${serviceStatus.unavailable.length} 个不可用`;
+  log(`${serviceIcon} 框架服务: ${serviceText}`, serviceStatus.allAvailable ? 'green' : 'yellow');
+  
+  log(''); // 空行
+}
+
+/**
+ * 执行所有测试
+ * @param {Array} testTypes - 要执行的测试类型数组
+ * @param {Object} testConfigs - 测试配置对象
+ * @param {Array} frameworks - 可用的框架数组
+ * @returns {Promise<Array>} 所有测试结果
+ */
+export async function executeAllTests(testTypes, testConfigs, frameworks) {
+  const allResults = [];
+  
+  for (const testType of testTypes) {
+    logHeader(`🧪 运行 ${testConfigs[testType].name}`);
+    
+    for (const framework of frameworks) {
+      const startTime = Date.now();
+      const result = await runTest(framework, testType);
+      const duration = Date.now() - startTime;
+      
+      allResults.push({
+        framework: framework.name,
+        testType,
+        success: result.success,
+        duration: `${duration}ms`,
+        output: result.output,
+        errorOutput: result.errorOutput
+      });
+
+      // 等待一下再运行下一个测试
+      await wait(1000);
+    }
+  }
+  
+  return allResults;
 }

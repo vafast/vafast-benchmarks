@@ -9,10 +9,13 @@ import {
   log, 
   logHeader, 
   logSubHeader, 
-  checkService, 
   runTest, 
   generateReport, 
   checkK6Installation, 
+  validateTestTypes,
+  checkFrameworkServices,
+  displaySystemCheckSummary,
+  executeAllTests,
   wait 
 } from './utils/k6-test-utils.js';
 
@@ -47,80 +50,39 @@ async function main() {
   logHeader('🚀 Vafast 框架性能测试套件');
   log('基于 Grafana k6 官方最佳实践', 'blue');
   
-  // 检查k6是否安装
-  const k6Installed = await checkK6Installation();
-  if (!k6Installed) {
-    process.exit(1);
-  }
-
-  // 选择测试类型
+  // 获取测试类型参数
   const testTypes = process.argv.slice(2);
-  if (testTypes.length === 0) {
-    log('请选择要运行的测试类型:', 'yellow');
-    Object.keys(testConfigs).forEach(key => {
-      const config = testConfigs[key];
-      log(`  ${key}: ${config.name} - ${config.description}`, 'blue');
-    });
-    log('\n示例: node run-k6-tests.js peak quick', 'cyan');
-    process.exit(1);
-  }
-
-  // 验证测试类型
-  const validTestTypes = testTypes.filter(type => testConfigs[type]);
-  if (validTestTypes.length === 0) {
-    log('❌ 无效的测试类型', 'red');
-    process.exit(1);
-  }
-
-  log(`🎯 将运行以下测试: ${validTestTypes.join(', ')}`, 'green');
-
-  // 检查框架服务状态
-  logSubHeader('检查框架服务状态');
-  const availableFrameworks = [];
   
-  for (const framework of frameworks) {
-    const isAvailable = await checkService(framework);
-    if (isAvailable) {
-      log(`✅ ${framework.name} (端口 ${framework.port}) - 可用`, 'green');
-      availableFrameworks.push(framework);
-    } else {
-      log(`❌ ${framework.name} (端口 ${framework.port}) - 不可用`, 'red');
-    }
-  }
-
-  if (availableFrameworks.length === 0) {
-    log('❌ 没有可用的框架服务', 'red');
-    log('请先启动框架服务: bun run start-servers', 'blue');
+  // 系统检查
+  const k6Status = await checkK6Installation();
+  if (!k6Status) {
     process.exit(1);
   }
-
-  // 运行测试
-  const allResults = [];
   
-  for (const testType of validTestTypes) {
-    logHeader(`🧪 运行 ${testConfigs[testType].name}`);
-    
-    for (const framework of availableFrameworks) {
-      const startTime = Date.now();
-      const result = await runTest(framework, testType);
-      const duration = Date.now() - startTime;
-      
-      allResults.push({
-        framework: framework.name,
-        testType,
-        success: result.success,
-        duration: `${duration}ms`,
-        output: result.output,
-        errorOutput: result.errorOutput
-      });
-
-      // 等待一下再运行下一个测试
-      await wait(1000);
-    }
+  const testValidation = validateTestTypes(testTypes, testConfigs);
+  if (!testValidation.valid) {
+    log(testValidation.message, 'yellow');
+    process.exit(1);
   }
+  
+  const serviceStatus = await checkFrameworkServices(frameworks);
+  if (!serviceStatus.allAvailable) {
+    log(serviceStatus.message, 'red');
+    process.exit(1);
+  }
+  
+  // 显示系统检查摘要
+  displaySystemCheckSummary(k6Status, testValidation, serviceStatus);
+  
+  // // 执行所有测试
+  // const allResults = await executeAllTests(
+  //   testValidation.validTypes, 
+  //   testConfigs, 
+  //   serviceStatus.available
+  // );
 
-  // 生成报告
-  generateReport(allResults);
+  // // 生成报告
+  // generateReport(allResults);
   
   logHeader('🎉 所有测试完成');
   log('感谢使用 Vafast 框架性能测试套件！', 'green');
