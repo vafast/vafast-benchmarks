@@ -493,6 +493,37 @@ function getEndpointsByTestType(testType) {
       weight: 1 
     },
     { 
+      path: '/techempower/updates', 
+      method: 'GET', 
+      name: '数据库更新', 
+      contentType: 'application/json',
+      qs: { queries: 1 },
+      weight: 1 
+    },
+    { 
+      path: '/techempower/complex-json', 
+      method: 'GET', 
+      name: '复杂JSON序列化', 
+      contentType: 'application/json',
+      qs: { depth: 5 },
+      weight: 1 
+    },
+    { 
+      path: '/techempower/batch-process', 
+      method: 'POST', 
+      name: '批量数据处理', 
+      contentType: 'application/json',
+      body: {
+        items: [
+          { id: 1, value: 100, name: "item1" },
+          { id: 2, value: 200, name: "item2" },
+          { id: 3, value: 300, name: "item3" }
+        ],
+        operation: "sum"
+      },
+      weight: 1 
+    },
+    { 
       path: '/schema/validate', 
       method: 'POST', 
       name: 'Schema验证', 
