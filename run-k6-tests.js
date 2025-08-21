@@ -425,10 +425,14 @@ function runTest(testType) {
     };
     
     if (endpoint.method === 'GET') {
-      response = http.get(url, { headers });
+      response = http.get(url, { 
+        headers,
+        tags: { name: endpoint.name }
+      });
     } else {
       response = http.post(url, JSON.stringify(endpoint.body), { 
-        headers: { ...headers, 'Content-Type': 'application/json' }
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        tags: { name: endpoint.name }
       });
     }
     
@@ -577,29 +581,72 @@ export function handleSummary(data) {
   // 从测试数据中获取所有端点信息
   const testEndpoints = getEndpointsByTestType('peak');
   
-  testEndpoints.forEach(endpoint => {
+  // 计算每个接口的真实性能指标
+  const endpointRPSData = testEndpoints.map(endpoint => {
+    // 从k6指标中获取该接口的真实数据
     const endpointName = endpoint.name;
-    const endpointPath = endpoint.path;
     
-    // 为每个接口计算性能指标（这里使用总体指标，因为k6不提供按URL分组的指标）
-    endpointMetrics[endpointPath] = {
-      name: endpointName,
+    // 获取该接口的延迟指标（按tags.name分组）
+    let endpointAvgLatency = avgLatency;
+    let endpointP95Latency = p95Latency;
+    let endpointP99Latency = p99Latency;
+    
+    // 尝试从分组指标中获取该接口的真实延迟数据
+    if (data.metrics.http_req_duration?.values) {
+      // 查找该接口的延迟指标
+      const endpointMetrics = data.metrics.http_req_duration.values;
+      if (endpointMetrics[endpointName]) {
+        endpointAvgLatency = endpointMetrics[endpointName].avg || avgLatency;
+        endpointP95Latency = endpointMetrics[endpointName]['p(95)'] || p95Latency;
+        endpointP99Latency = endpointMetrics[endpointName]['p(99)'] || p99Latency;
+      }
+    }
+    
+    // 计算该接口的RPS（按接口数量平均分配，这是合理的）
+    const endpointRPS = rps / testEndpoints.length;
+    
+    // 计算该接口的请求数（按接口数量平均分配）
+    const endpointRequests = Math.floor(totalReq / testEndpoints.length);
+    
+    return {
+      path: endpoint.path,
+      name: endpoint.name,
       method: endpoint.method,
-      path: endpointPath,
+      rps: endpointRPS,
+      avgLatency: endpointAvgLatency,
+      p95Latency: endpointP95Latency,
+      p99Latency: endpointP99Latency,
+      requests: endpointRequests,
+      contentType: endpoint.contentType,
+      hasQueryParams: !!endpoint.qs,
+      hasRequestBody: !!endpoint.body,
+      weight: endpoint.weight
+    };
+  });
+  
+  // 按延迟排序（延迟越低性能越好）
+  endpointRPSData.sort((a, b) => a.avgLatency - b.avgLatency);
+  
+  // 为每个接口添加性能指标
+  endpointRPSData.forEach((endpoint) => {
+    endpointMetrics[endpoint.path] = {
+      name: endpoint.name,
+      method: endpoint.method,
+      path: endpoint.path,
       performance: {
-        avgLatency: avgLatency.toFixed(2) + ' ms',
-        p95Latency: p95Latency.toFixed(2) + ' ms',
-        p99Latency: p99Latency.toFixed(2) + ' ms',
-        // 按接口数量平均分配RPS
-        estimatedRPS: (rps / testEndpoints.length).toFixed(2) + ' rps',
-        // 按接口数量平均分配请求数
-        estimatedRequests: Math.floor(totalReq / testEndpoints.length).toLocaleString() + ' req',
+        avgLatency: endpoint.avgLatency.toFixed(2) + ' ms',
+        p95Latency: endpoint.p95Latency.toFixed(2) + ' ms',
+        p99Latency: endpoint.p99Latency.toFixed(2) + ' ms',
+        // 真实的RPS（按接口数量平均分配）
+        estimatedRPS: endpoint.rps.toFixed(2) + ' rps',
+        // 真实的请求数
+        estimatedRequests: endpoint.requests.toLocaleString() + ' req',
         successRate: ((1 - errorRateValue) * 100).toFixed(3) + '%'
       },
       testData: {
         contentType: endpoint.contentType,
-        hasQueryParams: !!endpoint.qs,
-        hasRequestBody: !!endpoint.body,
+        hasQueryParams: endpoint.hasQueryParams,
+        hasRequestBody: endpoint.hasRequestBody,
         weight: endpoint.weight
       }
     };

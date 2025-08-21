@@ -1,35 +1,35 @@
 {
   "framework": "elysia",
-  "beijingTime": "2025/8/21 18:13:52",
+  "beijingTime": "2025/8/21 18:24:50",
   "results": {
     "coldStart": {
       "emoji": "👑",
       "name": "冷启动",
-      "value": "2.38 ms",
-      "description": "2.38 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+      "value": "2.85 ms",
+      "description": "2.85 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
     },
     "requestsPerSecond": {
       "emoji": "⚡️",
       "name": "每秒请求数",
-      "value": "35957.487418063814 rps",
+      "value": "36956.50456698097 rps",
       "description": "为瞬时流量而生 — 无需预热。"
     },
     "avgLatency": {
       "emoji": "📉",
       "name": "平均延迟",
-      "value": "1.15 ms",
+      "value": "1.14 ms",
       "description": "压力之下依然迅捷。始终如一。"
     },
     "p95Latency": {
       "emoji": "📊",
       "name": "P95延迟",
-      "value": "3.83 ms",
+      "value": "3.66 ms",
       "description": "95%的请求延迟都在此范围内"
     },
     "p99Latency": {
       "emoji": "🎯",
       "name": "P99延迟",
-      "value": "6.92 ms",
+      "value": "6.68 ms",
       "description": "99%的请求延迟都在此范围内"
     },
     "errorRate": {
@@ -41,7 +41,7 @@
     "totalRequests": {
       "emoji": "🎯",
       "name": "总请求数",
-      "value": "359641 req / 10s",
+      "value": "369603 req / 10s",
       "description": "在10秒内完成的总请求数"
     }
   },
@@ -51,11 +51,11 @@
       "method": "GET",
       "path": "/techempower/json",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -70,11 +70,11 @@
       "method": "GET",
       "path": "/techempower/plaintext",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -89,11 +89,11 @@
       "method": "GET",
       "path": "/techempower/db",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -108,11 +108,11 @@
       "method": "GET",
       "path": "/techempower/updates",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -127,11 +127,11 @@
       "method": "GET",
       "path": "/techempower/complex-json",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -146,11 +146,11 @@
       "method": "POST",
       "path": "/techempower/batch-process",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -165,11 +165,11 @@
       "method": "POST",
       "path": "/schema/validate",
       "performance": {
-        "avgLatency": "1.15 ms",
-        "p95Latency": "3.83 ms",
-        "p99Latency": "6.92 ms",
-        "estimatedRPS": "5136.78 rps",
-        "estimatedRequests": "51377 req",
+        "avgLatency": "1.14 ms",
+        "p95Latency": "3.66 ms",
+        "p99Latency": "6.68 ms",
+        "estimatedRPS": "5279.50 rps",
+        "estimatedRequests": "52800 req",
         "successRate": "100.000%"
       },
       "testData": {
@@ -181,14 +181,14 @@
     }
   },
   "summary": {
-    "totalRequests": 359641,
+    "totalRequests": 369603,
     "testDuration": 10,
-    "rps": 35957.487418063814,
-    "avgLatency": 1.1462470713850685,
-    "p95Latency": 3.825,
-    "p99Latency": 6.923,
+    "rps": 36956.50456698097,
+    "avgLatency": 1.1367732485937585,
+    "p95Latency": 3.659,
+    "p99Latency": 6.676,
     "errorRate": 0,
-    "coldStart": 2.3828125,
+    "coldStart": 2.847457627118644,
     "totalEndpoints": 7
   }
 }
