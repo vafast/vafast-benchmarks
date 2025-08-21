@@ -26,62 +26,32 @@ exports.options = {
     'throughput': ['rate>1000'], // 至少1000 RPS
   },
   
-  // 定义测试场景 - 使用ramping-vus执行器
+  // 定义测试场景 - 专门针对最高性能测试
   scenarios: {
-    // 冒烟测试 - 验证基本功能
-    smoke_test: {
-      executor: 'ramping-vus',
-      startVUs: 1,
-      stages: [
-        { duration: '5s', target: 5 },   // 5秒内增加到5个用户
-        { duration: '5s', target: 5 },   // 保持5个用户5秒
-        { duration: '5s', target: 0 },   // 5秒内减少到0个用户
-      ],
-      gracefulRampDown: '5s',
-      exec: 'smokeTest',
-    },
-    
-    // 平均负载测试 - 模拟正常流量
-    average_load: {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '10s', target: 20 },  // 10秒内增加到20个用户
-        { duration: '30s', target: 20 },  // 保持20个用户30秒
-        { duration: '10s', target: 0 },   // 10秒内减少到0个用户
-      ],
-      gracefulRampDown: '10s',
-      exec: 'averageLoadTest',
-    },
-    
-    // 压力测试 - 找到系统极限
-    stress_test: {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '10s', target: 50 },   // 10秒内增加到50个用户
-        { duration: '30s', target: 50 },   // 保持50个用户30秒
-        { duration: '10s', target: 100 },  // 10秒内增加到100个用户
-        { duration: '30s', target: 100 },  // 保持100个用户30秒
-        { duration: '10s', target: 0 },    // 10秒内减少到0个用户
-      ],
-      gracefulRampDown: '10s',
-      exec: 'stressTest',
-    },
-    
-    // 峰值测试 - 测试最大容量
+    // 峰值测试 - 优先执行，测试最大性能
     peak_test: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '10s', target: 100 },  // 10秒内增加到100个用户
-        { duration: '20s', target: 100 },  // 保持100个用户20秒
-        { duration: '10s', target: 200 },  // 10秒内增加到200个用户
-        { duration: '20s', target: 200 },  // 保持200个用户20秒
-        { duration: '10s', target: 0 },    // 10秒内减少到0个用户
+        { duration: '10s', target: 200 },  // 快速增加到200用户
+        { duration: '30s', target: 200 },  // 保持峰值30秒
+        { duration: '10s', target: 0 },    // 快速减少到0
       ],
-      gracefulRampDown: '10s',
+      gracefulRampDown: '5s',
       exec: 'peakTest',
+    },
+    
+    // 快速测试 - 最后执行，验证基本功能
+    quick_test: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '5s', target: 10 },    // 快速增加到10用户
+        { duration: '10s', target: 10 },   // 保持10秒
+        { duration: '5s', target: 0 },     // 快速减少到0
+      ],
+      gracefulRampDown: '3s',
+      exec: 'quickTest',
     },
   },
   
@@ -120,24 +90,14 @@ const testData = {
 let firstRequestTime = null;
 let isFirstRequest = true;
 
-// 冒烟测试函数
-exports.smokeTest = function() {
-  runTest('smoke');
-}
-
-// 平均负载测试函数
-exports.averageLoadTest = function() {
-  runTest('average');
-}
-
-// 压力测试函数
-exports.stressTest = function() {
-  runTest('stress');
-}
-
 // 峰值测试函数
 exports.peakTest = function() {
   runTest('peak');
+}
+
+// 快速测试函数
+exports.quickTest = function() {
+  runTest('quick');
 }
 
 // 通用测试函数
@@ -219,12 +179,10 @@ function getEndpointsByTestType(testType) {
   
   // 根据测试类型调整权重
   switch (testType) {
-    case 'smoke':
-      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 2 })); // 冒烟测试增加权重
-    case 'stress':
-      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 0.5 })); // 压力测试减少权重
     case 'peak':
-      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 0.3 })); // 峰值测试进一步减少权重
+      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 0.3 })); // 峰值测试减少权重
+    case 'quick':
+      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 2 })); // 快速测试增加权重
     default:
       return baseEndpoints;
   }
@@ -233,16 +191,12 @@ function getEndpointsByTestType(testType) {
 // 根据测试类型获取思考时间
 function getThinkTimeByTestType(testType) {
   switch (testType) {
-    case 'smoke':
-      return Math.random() * 1 + 0.5; // 0.5-1.5秒
-    case 'average':
-      return Math.random() * 2 + 1;   // 1-3秒
-    case 'stress':
-      return Math.random() * 1 + 0.2; // 0.2-1.2秒
     case 'peak':
       return Math.random() * 0.5 + 0.1; // 0.1-0.6秒
+    case 'quick':
+      return Math.random() * 1 + 0.5; // 0.5-1.5秒
     default:
-      return Math.random() * 2 + 1;
+      return Math.random() * 1 + 0.5;
   }
 }
 

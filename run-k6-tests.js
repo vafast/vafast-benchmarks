@@ -16,29 +16,17 @@ const __dirname = path.dirname(__filename);
 
 // 测试配置
 const testConfigs = {
-  smoke: {
-    name: '冒烟测试',
-    description: '验证基本功能，快速发现问题',
-    command: 'k6 run --out json=k6-results-smoke.json k6-test-config.js',
-    duration: '15s'
-  },
-  average: {
-    name: '平均负载测试',
-    description: '模拟正常流量，测试系统稳定性',
-    command: 'k6 run --out json=k6-results-average.json k6-test-config.js',
-    duration: '50s'
-  },
-  stress: {
-    name: '压力测试',
-    description: '找到系统极限，测试高负载表现',
-    command: 'k6 run --out json=k6-results-stress.json k6-test-config.js',
-    duration: '90s'
-  },
   peak: {
     name: '峰值测试',
-    description: '测试最大容量，验证系统边界',
+    description: '测试框架最大性能，验证系统边界',
     command: 'k6 run --out json=k6-results-peak.json k6-test-config.js',
-    duration: '70s'
+    duration: '50s'
+  },
+  quick: {
+    name: '快速测试',
+    description: '验证基本功能，快速发现问题',
+    command: 'k6 run --out json=k6-results-quick.json k6-test-config.js',
+    duration: '20s'
   }
 };
 
@@ -236,7 +224,7 @@ async function main() {
       const config = testConfigs[key];
       log(`  ${key}: ${config.name} - ${config.description}`, 'blue');
     });
-    log('\n示例: node run-k6-tests.js smoke average', 'cyan');
+    log('\n示例: node run-k6-tests.js peak quick', 'cyan');
     process.exit(1);
   }
 

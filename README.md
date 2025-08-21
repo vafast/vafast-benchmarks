@@ -69,20 +69,17 @@ npm run start:servers
 #### 🧪 使用优化的 k6 测试套件 (推荐)
 
 ```bash
-# 冒烟测试 - 快速验证基本功能
-node run-k6-tests.js smoke
-
-# 平均负载测试 - 模拟正常流量
-node run-k6-tests.js average
-
-# 压力测试 - 找到系统极限
-node run-k6-tests.js stress
-
-# 峰值测试 - 测试最大容量
+# 峰值测试 - 测试框架最大性能
 node run-k6-tests.js peak
 
-# 运行多个测试类型
-node run-k6-tests.js smoke average stress
+# 快速测试 - 验证基本功能
+node run-k6-tests.js quick
+
+# 完整性能测试 - 峰值+快速测试
+node run-k6-tests.js peak quick
+
+# 或者使用npm脚本
+npm run test:k6:performance
 ```
 
 #### 📊 使用传统测试方式
