@@ -470,17 +470,27 @@ export function handleSummary(data) {
     console.log('⚠️ 响应较慢: 平均延迟超过20ms，需要优化');
   }
   
-  // 北京时间（用于内容展示）
-  const beijingNow = formatBeijingNow();
-  // 文件名安全时间戳（北京时间）
-  const timestamp = formatBeijingForFilename();
-  
   // 只返回格式化的结果，不包含完整的原始测试数据
   const FRAMEWORK_NAME = '${framework}';
   const RESULTS_DIR = './test-results/' + FRAMEWORK_NAME;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const formattedPath = RESULTS_DIR + '/formatted-ultimate-results-' + timestamp + '.json';
   const out = {};
-  out[formattedPath] = JSON.stringify({ beijingTime: beijingNow, results: formattedResults }, null, 2);
+  out[formattedPath] = JSON.stringify({ 
+    framework: '${framework}',
+    beijingTime: '${new Date().toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}',
+    results: formattedResults,
+    summary: {
+      totalRequests: totalReq,
+      testDuration: testDuration,
+      rps: rps,
+      avgLatency: avgLatency,
+      p95Latency: p95Latency,
+      p99Latency: p99Latency,
+      errorRate: errorRateValue,
+      coldStart: coldStart
+    }
+  }, null, 2);
   return out;
 }`;
 }
