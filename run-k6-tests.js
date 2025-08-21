@@ -24,14 +24,12 @@ const testConfigs = {
   peak: {
     name: '峰值测试',
     description: '测试框架最大性能，验证系统边界',
-    command: 'k6 run --out json=k6-results-peak.json k6-test-config.js',
-    duration: '50s'
+    waitTime: 1000  // 2秒等待时间
   },
   quick: {
     name: '快速测试',
     description: '验证基本功能，快速发现问题',
-    command: 'k6 run --out json=k6-results-quick.json k6-test-config.js',
-    duration: '20s'
+    waitTime: 1000  // 1秒等待时间
   }
 };
 
@@ -74,15 +72,15 @@ async function main() {
   // 显示系统检查摘要
   displaySystemCheckSummary(k6Status, testValidation, serviceStatus);
   
-  // // 执行所有测试
-  // const allResults = await executeAllTests(
-  //   testValidation.validTypes, 
-  //   testConfigs, 
-  //   serviceStatus.available
-  // );
+  // 执行所有测试
+  const allResults = await executeAllTests(
+    testValidation.validTypes, 
+    testConfigs, 
+    serviceStatus.available
+  );
 
   // // 生成报告
-  // generateReport(allResults);
+  generateReport(allResults);
   
   logHeader('🎉 所有测试完成');
   log('感谢使用 Vafast 框架性能测试套件！', 'green');

@@ -165,7 +165,6 @@ export function generateReport(results) {
       framework: r.framework,
       testType: r.testType,
       success: r.success,
-      duration: r.duration,
       output: r.output
     }))
   };
@@ -343,19 +342,19 @@ export async function executeAllTests(testTypes, testConfigs, frameworks) {
     for (const framework of frameworks) {
       const startTime = Date.now();
       const result = await runTest(framework, testType);
-      const duration = Date.now() - startTime;
       
       allResults.push({
         framework: framework.name,
         testType,
         success: result.success,
-        duration: `${duration}ms`,
         output: result.output,
         errorOutput: result.errorOutput
       });
 
-      // 等待一下再运行下一个测试
-      await wait(1000);
+      // 使用配置中的等待时间
+      const waitTime = testConfigs[testType].waitTime || 1000;
+      log(`⏳ 等待 ${waitTime/1000} 秒后继续下一个测试...`, 'blue');
+      await wait(waitTime);
     }
   }
   
