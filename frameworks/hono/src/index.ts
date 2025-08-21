@@ -10,6 +10,11 @@ import {
 
 const app = new Hono();
 
+// 健康检查端点
+app.get("/health", (c) => {
+  return c.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // 基本路由
 app.get("/", (c) => {
   return c.text("Hello Hono!");

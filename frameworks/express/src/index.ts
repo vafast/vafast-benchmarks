@@ -9,7 +9,7 @@ import {
 } from "../../../utils";
 
 const app = express();
-const port = 3002;
+const port = 3000;
 
 // 中间件
 app.use(express.json());
@@ -37,6 +37,11 @@ function validateBody<T extends TSchema>(schema: T) {
     }
   };
 }
+
+// 健康检查端点
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // 基本路由
 app.get("/", (req, res) => {

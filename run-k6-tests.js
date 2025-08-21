@@ -9,30 +9,42 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 
-// 测试配置 - 与 start-servers.ts 保持一致
+// 测试配置 - 所有框架统一使用3000端口，依次启动测试
 const TEST_CONFIGS = {
   'vafast-mini': {
-    port: 3005,
+    port: 3000,
+    directory: 'frameworks/vafast-mini',
+    startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Vafast Mini 框架测试'
   },
   'vafast': {
-    port: 3004,
+    port: 3000,
+    directory: 'frameworks/vafast',
+    startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Vafast 框架测试'
   },
   'express': {
-    port: 3002,
+    port: 3000,
+    directory: 'frameworks/express',
+    startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Express 框架测试'
   },
   'koa': {
-    port: 3003,
+    port: 3000,
+    directory: 'frameworks/koa',
+    startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Koa 框架测试'
   },
   'hono': {
-    port: 3001,
+    port: 3000,
+    directory: 'frameworks/hono',
+    startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Hono 框架测试'
   },
   'elysia': {
     port: 3000,
+    directory: 'frameworks/elysia',
+    startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Elysia 框架测试'
   }
 };
@@ -119,6 +131,121 @@ function formatBeijingForFilename() {
   const MM = String(beijing.getUTCMinutes()).padStart(2, '0');
   const SS = String(beijing.getUTCSeconds()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}_${HH}-${MM}-${SS}`;
+}
+
+// 启动框架服务器
+function startFrameworkServer(framework, config) {
+  return new Promise((resolve, reject) => {
+    logStep(`启动 ${config.description}...`);
+    
+    const server = spawn(config.startCommand[0], config.startCommand.slice(1), {
+      cwd: config.directory,
+      stdio: 'pipe',
+    });
+    
+    let output = '';
+    let started = false;
+    
+    server.stdout?.on('data', (data) => {
+      output += data.toString();
+      // 检查多种可能的启动成功标识
+      if (
+        !started &&
+        (output.includes('Server running') ||
+          output.includes('listening') ||
+          output.includes('running at') ||
+          output.includes('🚀') ||
+          output.includes('Server started') ||
+          output.includes('Ready'))
+      ) {
+        started = true;
+        logSuccess(`${config.description} 启动成功 (端口: ${config.port})`);
+        resolve(server);
+      }
+    });
+    
+    server.stderr?.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    server.on('error', (error) => {
+      logError(`${config.description} 启动失败: ${error.message}`);
+      reject(error);
+    });
+    
+    // 20秒超时
+    setTimeout(() => {
+      if (!started) {
+        logWarning(`${config.description} 启动超时 (20秒)`);
+        server.kill();
+        reject(new Error(`${config.description} 启动超时`));
+      }
+    }, 20000);
+  });
+}
+
+// 停止服务器
+function stopServer(server, frameworkName) {
+  return new Promise((resolve) => {
+    if (!server || server.killed) {
+      resolve();
+      return;
+    }
+    
+    logStep(`停止 ${frameworkName} 服务器...`);
+    
+    server.on('close', () => {
+      logSuccess(`${frameworkName} 服务器已停止`);
+      resolve();
+    });
+    
+    // 发送SIGTERM信号
+    server.kill('SIGTERM');
+    
+    // 如果5秒后还没停止，强制kill
+    setTimeout(() => {
+      if (!server.killed) {
+        server.kill('SIGKILL');
+        logWarning(`${frameworkName} 服务器被强制停止`);
+        resolve();
+      }
+    }, 5000);
+  });
+}
+
+// 检查端口是否可用
+function waitForPort(port, maxRetries = 10) {
+  return new Promise((resolve, reject) => {
+    let retries = 0;
+    
+    const checkPort = () => {
+      const check = spawn('curl', ['-s', `http://localhost:${port}/health`], { stdio: 'pipe' });
+      
+      check.on('close', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          retries++;
+          if (retries >= maxRetries) {
+            reject(new Error(`端口 ${port} 检查超时`));
+          } else {
+            setTimeout(checkPort, 1000); // 等待1秒后重试
+          }
+        }
+      });
+      
+      check.on('error', () => {
+        retries++;
+        if (retries >= maxRetries) {
+          reject(new Error(`端口 ${port} 检查失败`));
+        } else {
+          setTimeout(checkPort, 1000);
+        }
+      });
+    };
+    
+    checkPort();
+  });
 }
 
 // 检查 K6 是否安装
@@ -379,8 +506,8 @@ function getEndpointsByTestType(testType) {
 export function handleSummary(data) {
   console.log('📊 极致性能测试完成，生成详细报告...');
   
-  // 计算自定义指标
-  const coldStart = data.metrics.cold_start_time?.values?.p95 || 0;
+  // 计算自定义指标 - 修复冷启动时间计算
+  const coldStart = data.metrics.cold_start_time?.values?.avg || 0;
   const avgLatency = data.metrics.http_req_duration?.values?.avg || 0;
   const p95Latency = data.metrics.http_req_duration?.values?.['p(95)'] || 0;
   const p99Latency = data.metrics.http_req_duration?.values?.['p(99)'] || 0;
@@ -499,62 +626,86 @@ export function handleSummary(data) {
 
 
 
-// 运行单个框架测试
+// 运行单个框架测试（包含启动和停止服务器）
 function runFrameworkTest(framework, config) {
-  return new Promise((resolve, reject) => {
-    logHeader(`${config.description} (端口: ${config.port})`);
-    logPerformance(`开始极致性能测试`);
+  return new Promise(async (resolve, reject) => {
+    let server = null;
     
-    // 生成 K6 测试配置
-    const k6Config = generateK6Config(framework, config.port);
-    const configPath = `./k6-test-${framework}.js`;
-    fs.writeFileSync(configPath, k6Config);
-    logInfo(`测试配置文件: ${configPath}`);
-    
-    // 设置环境变量
-    const env = {
-      ...process.env,
-      BASE_URL: `http://localhost:${config.port}`,
-      FRAMEWORK: framework.toUpperCase(),
-      framework: framework
-    };
-    
-    // 创建框架特定的结果目录
-    const timestamp = formatBeijingForFilename();
-    const frameworkResultsDir = `./test-results/${framework}`;
-    if (!fs.existsSync(frameworkResultsDir)) {
-      fs.mkdirSync(frameworkResultsDir, { recursive: true });
-    }
-    
-    // 运行 K6 测试 - 不输出原始JSON日志，只保留格式化结果
-    const k6 = spawn('k6', [
-      'run',
-      configPath
-    ], {
-      env,
-      stdio: 'inherit'
-    });
-    
-    k6.on('close', (code) => {
-      if (code === 0) {
-        logSuccess(`${framework} 测试完成！`);
-        // 清理临时配置文件
+    try {
+      logHeader(`${config.description} (端口: ${config.port})`);
+      logPerformance(`开始冷启动性能测试`);
+      
+      // 1. 启动服务器（测试真正的冷启动）
+      server = await startFrameworkServer(framework, config);
+      
+      // 2. 等待服务器完全启动
+      await waitForPort(config.port);
+      logSuccess(`${framework} 服务器就绪，开始性能测试`);
+      
+      // 3. 生成 K6 测试配置
+      const k6Config = generateK6Config(framework, config.port);
+      const configPath = `./k6-test-${framework}.js`;
+      fs.writeFileSync(configPath, k6Config);
+      logInfo(`测试配置文件: ${configPath}`);
+      
+      // 4. 设置环境变量
+      const env = {
+        ...process.env,
+        BASE_URL: `http://localhost:${config.port}`,
+        FRAMEWORK: framework.toUpperCase(),
+        framework: framework
+      };
+      
+      // 5. 创建框架特定的结果目录
+      const frameworkResultsDir = `./test-results/${framework}`;
+      if (!fs.existsSync(frameworkResultsDir)) {
+        fs.mkdirSync(frameworkResultsDir, { recursive: true });
+      }
+      
+      // 6. 运行 K6 测试
+      const k6 = spawn('k6', [
+        'run',
+        configPath
+      ], {
+        env,
+        stdio: 'inherit'
+      });
+      
+      k6.on('close', async (code) => {
+        // 7. 停止服务器
+        await stopServer(server, framework);
+        
+        // 8. 清理临时配置文件
         try {
           fs.unlinkSync(configPath);
         } catch (e) {
           // 忽略删除错误
         }
-        resolve();
-      } else {
-        logError(`${framework} 测试失败，退出码: ${code}`);
-        reject(new Error(`测试失败，退出码: ${code}`));
+        
+        if (code === 0) {
+          logSuccess(`${framework} 测试完成！`);
+          resolve();
+        } else {
+          logError(`${framework} 测试失败，退出码: ${code}`);
+          reject(new Error(`测试失败，退出码: ${code}`));
+        }
+      });
+      
+      k6.on('error', async (error) => {
+        // 出错时也要停止服务器
+        await stopServer(server, framework);
+        logError(`${framework} 测试启动失败: ${error.message}`);
+        reject(error);
+      });
+      
+    } catch (error) {
+      // 启动失败时停止服务器
+      if (server) {
+        await stopServer(server, framework);
       }
-    });
-    
-    k6.on('error', (error) => {
-      logError(`${framework} 测试启动失败: ${error.message}`);
+      logError(`${framework} 启动失败: ${error.message}`);
       reject(error);
-    });
+    }
   });
 }
 
@@ -580,12 +731,13 @@ async function runAllTests() {
     }
     
     // 显示测试配置
-    logSubHeader(`极致性能测试配置`);
+    logSubHeader(`冷启动性能测试配置`);
     logInfo('测试特点:', 'blue');
-    log('  🚀 无预热阶段，直接峰值负载', 'green');
-    log('  ⚡️ 无任何延迟，纯性能测试', 'green');
-    log('  📊 高并发：500-2000 用户', 'green');
-    log('  ⏱️  测试时长：2.5 分钟', 'green');
+    log('  🚀 真正的冷启动测试 - 每次测试前启动服务器', 'green');
+    log('  ⚡️ 统一端口3000 - 依次启动和停止服务', 'green');
+    log('  📊 高并发：100 并发用户', 'green');
+    log('  ⏱️  测试时长：10 秒', 'green');
+    log('  🔄 自动服务器管理 - 启动→测试→停止', 'green');
     
     // 运行每个框架的测试
     for (const [framework, config] of Object.entries(TEST_CONFIGS)) {

@@ -41,6 +41,15 @@ const BatchProcessSchema = Type.Object({
 
 // 使用vafast defineRoutes - 简洁清晰
 const routes = defineRoutes([
+  // 健康检查端点
+  {
+    method: "GET",
+    path: "/health",
+    handler: createRouteHandler(() => {
+      return { status: "ok", timestamp: new Date().toISOString() };
+    }),
+  },
+  
   // 基本路由
   {
     method: "GET",
@@ -136,7 +145,7 @@ const routes = defineRoutes([
 // 使用vafast Server - 简单直接
 const server = new Server(routes);
 
-console.log(`⚡ Vafast is running at http://localhost:3005`);
+console.log(`⚡ Vafast is running at http://localhost:3000`);
 console.log("📊 Available benchmark endpoints:");
 console.log("=== Schema 验证接口 ===");
 console.log(
@@ -155,6 +164,6 @@ console.log(
 
 // 导出服务器
 export default {
-  port: 3004,
+  port: 3000,
   fetch: (req: Request) => server.fetch(req),
 };

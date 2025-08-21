@@ -19,7 +19,7 @@ import {
 
 const app = new Koa();
 const router = new Router();
-const port = 3003;
+const port = 3000;
 
 // 中间件
 app.use(bodyParser({}));
@@ -50,6 +50,11 @@ function validateBodyKoa<T extends TSchema>(schema: T) {
     }
   };
 }
+
+// 健康检查端点
+router.get("/health", async (ctx) => {
+  ctx.body = { status: "ok", timestamp: new Date().toISOString() };
+});
 
 // 基本路由
 router.get("/", async (ctx) => {
