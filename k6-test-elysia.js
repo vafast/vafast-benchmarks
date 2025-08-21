@@ -1,6 +1,7 @@
-const http = require('k6/http');
-const { check, sleep } = require('k6');
-const { Rate, Trend, Counter, Gauge } = require('k6/metrics');
+import http from 'k6/http';
+import { check } from 'k6';
+import { Rate, Trend, Counter, Gauge } from 'k6/metrics';
+import fs from 'fs';
 
 // 自定义指标
 const errorRate = new Rate('errors');
@@ -11,47 +12,34 @@ const totalRequests = new Counter('total_requests');
 const activeUsers = new Gauge('active_users');
 const throughput = new Rate('throughput');
 
-// 测试配置 - 基于k6官方最佳实践
-exports.options = {
-  // 定义阈值 - 确保性能目标
+// 极致性能测试配置
+export const options = {
+  // 定义阈值 - 极致性能要求
   thresholds: {
-    // 可用性阈值 - 错误率必须小于1%
-    http_req_failed: ['rate<0.01'],
-    // 延迟阈值 - 99%的请求必须在1秒内完成
-    http_req_duration: ['p(99)<1000'],
-    // 自定义指标阈值
-    'response_time': ['p(95)<300', 'p(99)<800'],
-    'cold_start_time': ['p(95)<10'],
-    // 吞吐量阈值
-    'throughput': ['rate>1000'], // 至少1000 RPS
+    http_req_failed: ['rate<0.001'],        // 错误率必须小于0.1%
+    http_req_duration: ['p(99)<500'],       // 99%的请求必须在500ms内完成
+    'response_time': ['p(95)<200', 'p(99)<400'],
+    'cold_start_time': ['p(95)<5'],         // 冷启动时间必须小于5ms
+    'throughput': ['rate>50000'],           // 至少50,000 RPS
   },
   
-  // 定义测试场景 - 专门针对最高性能测试
+  // 极致性能测试场景 - 无预热，直接峰值
   scenarios: {
-    // 峰值测试 - 优先执行，测试最大性能
+    // 直接峰值测试 - 无预热阶段
     peak_test: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '10s', target: 200 },  // 快速增加到200用户
-        { duration: '30s', target: 200 },  // 保持峰值30秒
-        { duration: '10s', target: 0 },    // 快速减少到0
+        { duration: '10s', target: 500 },   // 快速增加到500用户
+        { duration: '30s', target: 500 },   // 保持500用户30秒
+        { duration: '20s', target: 1000 },  // 增加到1000用户
+        { duration: '30s', target: 1000 },  // 保持1000用户30秒
+        { duration: '20s', target: 2000 },  // 增加到2000用户
+        { duration: '30s', target: 2000 },  // 保持2000用户30秒
+        { duration: '10s', target: 0 },     // 快速减少到0
       ],
       gracefulRampDown: '5s',
       exec: 'peakTest',
-    },
-    
-    // 快速测试 - 最后执行，验证基本功能
-    quick_test: {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '5s', target: 10 },    // 快速增加到10用户
-        { duration: '10s', target: 10 },   // 保持10秒
-        { duration: '5s', target: 0 },     // 快速减少到0
-      ],
-      gracefulRampDown: '3s',
-      exec: 'quickTest',
     },
   },
   
@@ -65,23 +53,29 @@ exports.options = {
   },
 };
 
-// 测试数据
+// 静态测试数据 - 确保测试公平性
 const testData = {
   schemaValidation: {
     user: {
-      name: "Test User",
-      phone: "13800138000",
+      name: "张三",
+      phone: "13800138001",
       age: 25,
       active: true,
-      tags: ["test", "user"],
+      tags: ["user", "test", "premium"],
       preferences: {
         theme: "light",
         language: "zh-CN",
+        notifications: true,
+        privacy: "public"
       },
     },
     metadata: {
       version: "1.0.0",
-      timestamp: new Date().toISOString(),
+      timestamp: "2024-01-01T00:00:00.000Z",
+      sessionId: "static-session-12345",
+      deviceId: "static-device-67890",
+      environment: "production",
+      region: "cn-north-1"
     },
   },
 };
@@ -90,20 +84,15 @@ const testData = {
 let firstRequestTime = null;
 let isFirstRequest = true;
 
-// 峰值测试函数
-exports.peakTest = function() {
+// 极致性能测试函数
+export function peakTest() {
   runTest('peak');
 }
 
-// 快速测试函数
-exports.quickTest = function() {
-  runTest('quick');
-}
-
-// 通用测试函数
+// 通用测试函数 - 优化版本
 function runTest(testType) {
-  const baseUrl = __ENV.BASE_URL || 'http://localhost:3005';
-  const framework = __ENV.FRAMEWORK || 'Vafast-Mini';
+  const baseUrl = 'http://localhost:3000';
+  const framework = 'elysia';
   
   // 根据测试类型调整端点权重
   const endpoints = getEndpointsByTestType(testType);
@@ -122,11 +111,17 @@ function runTest(testType) {
   }
   
   try {
+    // 优化请求头 - 最小化开销
+    const headers = {
+      'Accept': endpoint.contentType,
+      'Connection': 'keep-alive'
+    };
+    
     if (endpoint.method === 'GET') {
-      response = http.get(url);
+      response = http.get(url, { headers });
     } else {
-      response = http.post(url, JSON.stringify(endpoint.body), {
-        headers: { 'Content-Type': 'application/json' },
+      response = http.post(url, JSON.stringify(endpoint.body), { 
+        headers: { ...headers, 'Content-Type': 'application/json' }
       });
     }
     
@@ -140,20 +135,20 @@ function runTest(testType) {
       coldStartTime.add(responseTimeMs);
     }
     
-    // 检查响应 - 基于k6官方最佳实践
+    // 最小化检查 - 只检查状态码
     const success = check(response, {
       [`${endpoint.name} - 状态码是 200`]: (r) => r.status === 200,
-      [`${endpoint.name} - 响应时间 < 500ms`]: (r) => r.timings.duration < 500,
-      [`${endpoint.name} - 响应体不为空`]: (r) => r.body.length > 0,
-      [`${endpoint.name} - 响应头包含Content-Type`]: (r) => r.headers['Content-Type'] !== undefined,
     });
     
     if (!success) {
       errorRate.add(1);
-      console.error(`❌ ${endpoint.name} 测试失败:`, response.status, response.body);
+      console.error(`❌ ${endpoint.name} 测试失败:`, response.status);
     } else {
       errorRate.add(0);
-      console.log(`✅ ${endpoint.name} 测试成功: ${responseTimeMs}ms`);
+      // 只在调试模式下输出成功信息
+      if (__ENV.DEBUG) {
+        console.log(`✅ ${endpoint.name} 测试成功: ${responseTimeMs}ms`);
+      }
     }
     
   } catch (error) {
@@ -161,48 +156,57 @@ function runTest(testType) {
     console.error(`❌ ${endpoint.name} 请求异常:`, error.message);
   }
   
-  // 根据测试类型调整用户思考时间
-  const thinkTime = getThinkTimeByTestType(testType);
-  if (thinkTime > 0) {
-    sleep(thinkTime);
-  }
+  // 极致性能测试 - 无任何延迟
+  // 移除所有 sleep() 调用
 }
 
-// 根据测试类型获取端点配置
+// 根据测试类型获取端点配置 - 优化版本
 function getEndpointsByTestType(testType) {
   const baseEndpoints = [
-    { path: '/techempower/json', method: 'GET', name: 'JSON序列化', weight: 1 },
-    { path: '/techempower/plaintext', method: 'GET', name: '纯文本响应', weight: 1 },
-    { path: '/techempower/db?queries=1', method: 'GET', name: '数据库查询', weight: 1 },
-    { path: '/schema/validate', method: 'POST', name: 'Schema验证', body: testData.schemaValidation, weight: 1 },
+    { 
+      path: '/techempower/json', 
+      method: 'GET', 
+      name: 'JSON序列化', 
+      contentType: 'application/json',
+      weight: 1 
+    },
+    { 
+      path: '/techempower/plaintext', 
+      method: 'GET', 
+      name: '纯文本响应', 
+      contentType: 'text/plain',
+      weight: 1 
+    },
+    { 
+      path: '/techempower/db', 
+      method: 'GET', 
+      name: '数据库查询', 
+      contentType: 'application/json',
+      qs: { queries: 1 },
+      weight: 1 
+    },
+    { 
+      path: '/schema/validate', 
+      method: 'POST', 
+      name: 'Schema验证', 
+      contentType: 'application/json',
+      body: testData.schemaValidation, 
+      weight: 1 
+    },
   ];
   
   // 根据测试类型调整权重
   switch (testType) {
     case 'peak':
-      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 0.3 })); // 峰值测试减少权重
-    case 'quick':
-      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 2 })); // 快速测试增加权重
+      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 0.25 }));
     default:
       return baseEndpoints;
   }
 }
 
-// 根据测试类型获取思考时间
-function getThinkTimeByTestType(testType) {
-  switch (testType) {
-    case 'peak':
-      return Math.random() * 0.5 + 0.1; // 0.1-0.6秒
-    case 'quick':
-      return Math.random() * 1 + 0.5; // 0.5-1.5秒
-    default:
-      return Math.random() * 1 + 0.5;
-  }
-}
-
-// 测试完成后的钩子 - 基于k6官方最佳实践
-exports.handleSummary = function(data) {
-  console.log('📊 测试完成，生成详细报告...');
+// 测试完成后的钩子 - 极致性能版本
+export function handleSummary(data) {
+  console.log('📊 极致性能测试完成，生成详细报告...');
   
   // 计算自定义指标
   const coldStart = data.metrics.cold_start_time?.values?.p95 || 0;
@@ -261,7 +265,7 @@ exports.handleSummary = function(data) {
   };
   
   // 生成控制台输出
-  console.log('\n🚀 性能测试结果 🚀');
+  console.log('\n🚀 极致性能测试结果 🚀');
   console.log('='.repeat(60));
   
   Object.entries(formattedResults).forEach(([key, result]) => {
@@ -271,33 +275,36 @@ exports.handleSummary = function(data) {
     console.log('');
   });
   
-  // 性能评估
-  console.log('📈 性能评估');
+  // 性能评估 - 极致性能标准
+  console.log('📈 极致性能评估');
   console.log('='.repeat(30));
   
-  if (rps > 30000) {
-    console.log('🏆 极致性能: RPS超过30,000，性能表现卓越！');
+  if (rps > 50000) {
+    console.log('🏆 极致性能: RPS超过50,000，性能表现卓越！');
+  } else if (rps > 30000) {
+    console.log('🥇 优秀性能: RPS超过30,000，性能表现优秀！');
   } else if (rps > 20000) {
-    console.log('🥇 优秀性能: RPS超过20,000，性能表现优秀！');
-  } else if (rps > 10000) {
-    console.log('🥈 良好性能: RPS超过10,000，性能表现良好！');
+    console.log('🥈 良好性能: RPS超过20,000，性能表现良好！');
   } else {
-    console.log('🥉 一般性能: RPS低于10,000，有优化空间');
+    console.log('🥉 一般性能: RPS低于20,000，有优化空间');
   }
   
   if (avgLatency < 1) {
     console.log('⚡️ 极速响应: 平均延迟低于1ms，响应速度极快！');
-  } else if (avgLatency < 10) {
-    console.log('🚀 快速响应: 平均延迟低于10ms，响应速度很快！');
-  } else if (avgLatency < 100) {
-    console.log('✅ 正常响应: 平均延迟低于100ms，响应速度正常');
+  } else if (avgLatency < 5) {
+    console.log('🚀 快速响应: 平均延迟低于5ms，响应速度很快！');
+  } else if (avgLatency < 20) {
+    console.log('✅ 正常响应: 平均延迟低于20ms，响应速度正常');
   } else {
-    console.log('⚠️ 响应较慢: 平均延迟超过100ms，需要优化');
+    console.log('⚠️ 响应较慢: 平均延迟超过20ms，需要优化');
   }
   
-  // 返回JSON格式结果
+  // 获取当前时间戳，精确到秒
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+  
+  // 返回JSON格式结果，文件名包含精确时间戳
   return {
-    'k6-results.json': JSON.stringify(data, null, 2),
-    'formatted-results.json': JSON.stringify(formattedResults, null, 2)
+    `k6-ultimate-results-${timestamp}.json`: JSON.stringify(data, null, 2),
+    `formatted-ultimate-results-${timestamp}.json`: JSON.stringify(formattedResults, null, 2)
   };
 }
