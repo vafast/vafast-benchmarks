@@ -1,0 +1,64 @@
+{
+  "framework": "hono",
+  "endpoint": "updates",
+  "beijingTime": "2025-08-21 19:39:01+08:00",
+  "timestamp": "2025-08-21_19-39-01",
+  "results": {
+    "coldStart": {
+      "emoji": "👑",
+      "name": "冷启动",
+      "value": "2.35 ms",
+      "description": "2.35 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+    },
+    "requestsPerSecond": {
+      "emoji": "⚡️",
+      "name": "每秒请求数",
+      "value": "39649.993107069946 rps",
+      "description": "为瞬时流量而生 — 无需预热。"
+    },
+    "avgLatency": {
+      "emoji": "📉",
+      "name": "平均延迟",
+      "value": "1.03 ms",
+      "description": "压力之下依然迅捷。始终如一。"
+    },
+    "p95Latency": {
+      "emoji": "📊",
+      "name": "P95延迟",
+      "value": "3.32 ms",
+      "description": "95%的请求延迟都在此范围内"
+    },
+    "p99Latency": {
+      "emoji": "🎯",
+      "name": "P99延迟",
+      "value": "6.17 ms",
+      "description": "99%的请求延迟都在此范围内"
+    },
+    "errorRate": {
+      "emoji": "🚨",
+      "name": "错误率",
+      "value": "0.000%",
+      "description": "请求失败率，越低越好"
+    },
+    "totalRequests": {
+      "emoji": "🎯",
+      "name": "总请求数",
+      "value": "396619 req / 10s",
+      "description": "在10秒内完成的总请求数"
+    }
+  },
+  "summary": {
+    "totalRequests": 396619,
+    "testDuration": 10,
+    "rps": 39649.993107069946,
+    "avgLatency": 1.0268172099672324,
+    "p95Latency": 3.317,
+    "p99Latency": 6.168,
+    "errorRate": 0,
+    "coldStart": 2.346774193548387,
+    "totalEndpoints": 1,
+    "testedEndpoints": [
+      "数据库更新"
+    ]
+  }
+}

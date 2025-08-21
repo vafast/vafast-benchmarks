@@ -1,0 +1,70 @@
+{
+  "framework": "elysia",
+  "endpoint": "schema-validate",
+  "beijingTime": "2025-08-21 19:37:30+08:00",
+  "timestamp": "2025-08-21_19-37-30",
+  "results": {
+    "coldStart": {
+      "emoji": "👑",
+      "name": "冷启动",
+      "value": "2.90 ms",
+      "description": "2.90 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+    },
+    "requestsPerSecond": {
+      "emoji": "⚡️",
+      "name": "每秒请求数",
+      "value": "29332.88978658739 rps",
+      "description": "为瞬时流量而生 — 无需预热。"
+    },
+    "avgLatency": {
+      "emoji": "📉",
+      "name": "平均延迟",
+      "value": "1.16 ms",
+      "description": "压力之下依然迅捷。始终如一。"
+    },
+    "p95Latency": {
+      "emoji": "📊",
+      "name": "P95延迟",
+      "value": "4.03 ms",
+      "description": "95%的请求延迟都在此范围内"
+    },
+    "p99Latency": {
+      "emoji": "🎯",
+      "name": "P99延迟",
+      "value": "7.33 ms",
+      "description": "99%的请求延迟都在此范围内"
+    },
+    "errorRate": {
+      "emoji": "🚨",
+      "name": "错误率",
+      "value": "0.000%",
+      "description": "请求失败率，越低越好"
+    },
+    "totalRequests": {
+      "emoji": "🎯",
+      "name": "总请求数",
+      "value": "293805 req / 10s",
+      "description": "在10秒内完成的总请求数"
+    }
+  },
+  "summary": {
+    "totalRequests": 293805,
+    "testDuration": 10,
+    "rps": 29332.88978658739,
+    "avgLatency": 1.1596489712564684,
+    "p95Latency": 4.026,
+    "p99Latency": 7.328,
+    "errorRate": 0,
+    "coldStart": 2.9047619047619047,
+    "totalEndpoints": 7,
+    "testedEndpoints": [
+      "JSON序列化",
+      "纯文本响应",
+      "数据库查询",
+      "数据库更新",
+      "复杂JSON序列化",
+      "批量数据处理",
+      "Schema验证"
+    ]
+  }
+}

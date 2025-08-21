@@ -1,0 +1,64 @@
+{
+  "framework": "vafast",
+  "endpoint": "batch-process",
+  "beijingTime": "2025-08-21 19:47:40+08:00",
+  "timestamp": "2025-08-21_19-47-40",
+  "results": {
+    "coldStart": {
+      "emoji": "👑",
+      "name": "冷启动",
+      "value": "3.93 ms",
+      "description": "3.93 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+    },
+    "requestsPerSecond": {
+      "emoji": "⚡️",
+      "name": "每秒请求数",
+      "value": "26836.320104947852 rps",
+      "description": "为瞬时流量而生 — 无需预热。"
+    },
+    "avgLatency": {
+      "emoji": "📉",
+      "name": "平均延迟",
+      "value": "1.64 ms",
+      "description": "压力之下依然迅捷。始终如一。"
+    },
+    "p95Latency": {
+      "emoji": "📊",
+      "name": "P95延迟",
+      "value": "5.12 ms",
+      "description": "95%的请求延迟都在此范围内"
+    },
+    "p99Latency": {
+      "emoji": "🎯",
+      "name": "P99延迟",
+      "value": "8.50 ms",
+      "description": "99%的请求延迟都在此范围内"
+    },
+    "errorRate": {
+      "emoji": "🚨",
+      "name": "错误率",
+      "value": "0.000%",
+      "description": "请求失败率，越低越好"
+    },
+    "totalRequests": {
+      "emoji": "🎯",
+      "name": "总请求数",
+      "value": "268517 req / 10s",
+      "description": "在10秒内完成的总请求数"
+    }
+  },
+  "summary": {
+    "totalRequests": 268517,
+    "testDuration": 10,
+    "rps": 26836.320104947852,
+    "avgLatency": 1.6434433536796718,
+    "p95Latency": 5.116,
+    "p99Latency": 8.503,
+    "errorRate": 0,
+    "coldStart": 3.9298245614035086,
+    "totalEndpoints": 1,
+    "testedEndpoints": [
+      "批量数据处理"
+    ]
+  }
+}
