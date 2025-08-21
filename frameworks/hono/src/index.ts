@@ -121,7 +121,7 @@ app.post(
   }
 );
 
-console.log(`🔥 Hono is running at http://localhost:3001`);
+console.log(`🔥 Hono is running at http://localhost:3000`);
 console.log("📊 Available benchmark endpoints:");
 console.log("=== Schema 验证接口 ===");
 console.log("  POST /schema/validate               - 综合验证接口 (使用 TypeBox 验证器)");
@@ -137,6 +137,6 @@ console.log(
 );
 
 export default {
-  port: 3001,
+  port: 3000,
   fetch: app.fetch,
 };
