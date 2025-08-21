@@ -5,14 +5,16 @@
  * 基于 Grafana k6 官方最佳实践
  */
 
-import { spawn, spawnSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// 获取当前文件的目录
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { 
+  log, 
+  logHeader, 
+  logSubHeader, 
+  checkService, 
+  runTest, 
+  generateReport, 
+  checkK6Installation, 
+  wait 
+} from './utils/k6-test-utils.js';
 
 // 测试配置
 const testConfigs = {
@@ -40,179 +42,14 @@ const frameworks = [
   { name: 'Vafast-Mini', port: 3005, url: 'http://localhost:3005' }
 ];
 
-// 颜色输出
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m'
-};
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
-}
-
-function logHeader(title) {
-  log('\n' + '='.repeat(60), 'bright');
-  log(`  ${title}`, 'cyan');
-  log('='.repeat(60), 'bright');
-}
-
-function logSubHeader(title) {
-  log('\n' + '-'.repeat(40), 'yellow');
-  log(`  ${title}`, 'yellow');
-  log('-'.repeat(40), 'yellow');
-}
-
-// 检查服务是否可用
-async function checkService(framework) {
-  return new Promise((resolve) => {
-    import('http').then(({ default: http }) => {
-      const req = http.request(`${framework.url}/techempower/json`, { 
-        method: 'GET',
-        timeout: 3000 
-      }, (res) => {
-        if (res.statusCode === 200) {
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      });
-      
-      req.on('error', () => {
-        resolve(false);
-      });
-      
-      req.on('timeout', () => {
-        req.destroy();
-        resolve(false);
-      });
-      
-      req.end();
-    }).catch(() => {
-      resolve(false);
-    });
-  });
-}
-
-// 运行单个测试
-function runTest(framework, testType) {
-  return new Promise((resolve, reject) => {
-    const config = testConfigs[testType];
-    const env = {
-      ...process.env,
-      BASE_URL: framework.url,
-      FRAMEWORK: framework.name,
-      K6_OUT: `json=k6-results-${framework.name.toLowerCase()}-${testType}.json`
-    };
-
-    log(`🚀 开始 ${framework.name} 的 ${config.name}`, 'green');
-    log(`   描述: ${config.description}`, 'blue');
-    log(`   预计时长: ${config.duration}`, 'blue');
-    log(`   目标URL: ${framework.url}`, 'blue');
-
-    const k6Process = spawn('k6', ['run', 'k6-test-config.js'], {
-      env,
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let output = '';
-    let errorOutput = '';
-
-    k6Process.stdout.on('data', (data) => {
-      const message = data.toString();
-      output += message;
-      
-      // 显示更多k6输出信息
-      if (message.includes('✅') || message.includes('❌') || 
-          message.includes('running') || message.includes('complete') ||
-          message.includes('http_req_duration') || message.includes('http_reqs') ||
-          message.includes('iteration') || message.includes('vus')) {
-        process.stdout.write(message);
-      }
-    });
-
-    k6Process.stderr.on('data', (data) => {
-      const message = data.toString();
-      errorOutput += message;
-      
-      // 显示所有错误和警告信息
-      process.stderr.write(message);
-    });
-
-    k6Process.on('close', (code) => {
-      if (code === 0) {
-        log(`✅ ${framework.name} ${config.name} 完成`, 'green');
-        resolve({ success: true, output, errorOutput });
-      } else {
-        log(`❌ ${framework.name} ${config.name} 失败 (退出码: ${code})`, 'red');
-        resolve({ success: false, output, errorOutput, code });
-      }
-    });
-
-    k6Process.on('error', (error) => {
-      log(`❌ ${framework.name} ${config.name} 启动失败: ${error.message}`, 'red');
-      reject(error);
-    });
-  });
-}
-
-// 生成测试报告
-function generateReport(results) {
-  logHeader('📊 测试报告生成');
-  
-  const report = {
-    timestamp: new Date().toISOString(),
-    summary: {
-      totalFrameworks: results.length,
-      successfulTests: results.filter(r => r.success).length,
-      failedTests: results.filter(r => !r.success).length
-    },
-    results: results.map(r => ({
-      framework: r.framework,
-      testType: r.testType,
-      success: r.success,
-      duration: r.duration,
-      output: r.output
-    }))
-  };
-
-  // 保存报告
-  const reportPath = `test-report-${Date.now()}.json`;
-  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-  log(`📄 测试报告已保存到: ${reportPath}`, 'green');
-
-  // 显示摘要
-  logSubHeader('测试摘要');
-  log(`总框架数: ${report.summary.totalFrameworks}`, 'cyan');
-  log(`成功测试: ${report.summary.successfulTests}`, 'green');
-  log(`失败测试: ${report.summary.failedTests}`, 'red');
-
-  // 显示详细结果
-  logSubHeader('详细结果');
-  results.forEach(result => {
-    const status = result.success ? '✅' : '❌';
-    const color = result.success ? 'green' : 'red';
-    log(`${status} ${result.framework.name} - ${result.testType}: ${result.success ? '成功' : '失败'}`, color);
-  });
-}
-
 // 主函数
 async function main() {
   logHeader('🚀 Vafast 框架性能测试套件');
   log('基于 Grafana k6 官方最佳实践', 'blue');
   
   // 检查k6是否安装
-  try {
-    const k6Version = spawnSync('k6', ['version'], { encoding: 'utf8' });
-    log(`✅ k6 已安装: ${k6Version.stdout.trim()}`, 'green');
-  } catch (error) {
-    log('❌ k6 未安装，请先安装 k6', 'red');
-    log('安装命令: https://k6.io/docs/getting-started/installation/', 'blue');
+  const k6Installed = await checkK6Installation();
+  if (!k6Installed) {
     process.exit(1);
   }
 
@@ -278,7 +115,7 @@ async function main() {
       });
 
       // 等待一下再运行下一个测试
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await wait(1000);
     }
   }
 
@@ -297,7 +134,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 运行主函数
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === new URL(import.meta.url).pathname) {
   main().catch(error => {
     log('❌ 程序执行失败:', 'red');
     console.error(error);
