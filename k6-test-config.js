@@ -112,15 +112,15 @@ export default function () {
     
     if (!success) {
       errorRate.add(1);
-      console.error(`❌ ${endpoint.name} 测试失败:`, response.status, response.body);
+      // console.error(`❌ ${endpoint.name} 测试失败:`, response.status, response.body);
     } else {
       errorRate.add(0);
-      console.log(`✅ ${endpoint.name} 测试成功: ${responseTimeMs}ms`);
+      // console.log(`✅ ${endpoint.name} 测试成功: ${responseTimeMs}ms`);
     }
     
   } catch (error) {
     errorRate.add(1);
-    console.error(`❌ ${endpoint.name} 请求异常:`, error.message);
+    // console.error(`❌ ${endpoint.name} 请求异常:`, error.message);
   }
   
   // 模拟用户思考时间
