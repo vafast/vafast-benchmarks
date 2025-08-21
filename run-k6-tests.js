@@ -696,6 +696,7 @@ export function handleSummary(data) {
     framework: '${framework}',
     beijingTime: '${new Date().toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}',
     results: formattedResults,
+    endpointDetails: endpointMetrics,
     summary: {
       totalRequests: totalReq,
       testDuration: testDuration,
@@ -704,7 +705,8 @@ export function handleSummary(data) {
       p95Latency: p95Latency,
       p99Latency: p99Latency,
       errorRate: errorRateValue,
-      coldStart: coldStart
+      coldStart: coldStart,
+      totalEndpoints: testEndpoints.length
     }
   }, null, 2);
   return out;
