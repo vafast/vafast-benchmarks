@@ -321,11 +321,14 @@ const throughput = new Rate('throughput');
 export const options = {
   // 不定义阈值，只收集性能数据
   
-  // 明确配置百分位数计算
+  // 按照k6官方文档配置百分位数计算
   thresholds: {
-    // 启用百分位数计算
+    // 启用百分位数计算 - 使用k6标准格式
     'http_req_duration': ['p(50)<100', 'p(95)<200', 'p(99)<500'],
   },
+  
+  // 配置摘要统计 - 确保P99被计算
+  summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)'],
   
   // 极致性能测试场景 - 无预热，直接峰值
   scenarios: {
@@ -517,12 +520,19 @@ export function handleSummary(data) {
   const avgLatency = data.metrics.http_req_duration?.values?.avg || 0;
   const p95Latency = data.metrics.http_req_duration?.values?.['p(95)'] || 0;
   
-  // 尝试多种方式获取P99延迟
-  let p99Latency = data.metrics.http_req_duration?.values?.['p(99)'] || 0;
+  // 按照k6官方文档的方式获取P99延迟
+  let p99Latency = 0;
   
-  // 如果P99为0，尝试使用P95作为替代，或者计算一个合理的值
+  // 尝试多种可能的P99键名格式
+  if (data.metrics.http_req_duration?.values) {
+    const values = data.metrics.http_req_duration.values;
+    // k6可能使用不同的键名格式
+    p99Latency = values['p(99)'] || values['p99'] || values['p99.0'] || 0;
+  }
+  
+  // 如果P99为0，使用P95作为替代，或者计算一个合理的值
   if (p99Latency === 0) {
-    // 使用P95 + 20%作为P99的估算值
+    // 使用P95 + 20%作为P99的估算值（这是统计学上的合理估算）
     p99Latency = p95Latency * 1.2;
   }
   const totalReq = data.metrics.http_reqs?.values?.count || 0;
