@@ -1,7 +1,7 @@
 {
   "name": "vafast-benchmarks",
   "version": "1.0.0",
-  "description": "综合框架性能测试 - 对比主流框架与 vafast 原生框架",
+  "description": "综合框架性能测试 - 对比主流框架与 vafast 原生框架，集成 k6 性能测试工具",
   "main": "comprehensive-benchmark.ts",
   "type": "module",
   "scripts": {
@@ -12,7 +12,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:single": "k6 run k6-test-config.js",
     "test:batch": "bun run batch-framework-tester.ts",
-    "demo": "bun run demo-batch-test.ts"
+    "demo": "bun run demo-batch-test.ts",
+    "test:k6:smoke": "node run-k6-tests.js smoke",
+    "test:k6:average": "node run-k6-tests.js average",
+    "test:k6:stress": "node run-k6-tests.js stress",
+    "test:k6:peak": "node run-k6-tests.js peak",
+    "test:k6:all": "node run-k6-tests.js smoke average stress peak",
+    "test:k6:quick": "node run-k6-tests.js smoke average"
   },
   "dependencies": {
     "@hono/typebox-validator": "^0.2.0",
@@ -41,7 +47,8 @@
     "elysia",
     "hono",
     "express",
-    "vafast"
+    "vafast",
+    "k6"
   ],
   "author": "Your Name",
   "license": "MIT"
