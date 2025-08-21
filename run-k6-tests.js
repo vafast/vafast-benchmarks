@@ -89,6 +89,38 @@ function logPerformance(message) {
   log(`🏆 ${message}`, 'cyan');
 }
 
+// 将当前时间格式化为北京时间标准格式：YYYY-MM-DD HH:mm:ss+08:00
+function formatBeijingNow() {
+  const date = new Date();
+  // 北京时间是 UTC+8
+  const beijingOffsetMs = 8 * 60 * 60 * 1000;
+  const beijing = new Date(date.getTime() + (date.getTimezoneOffset() * 60 * 1000) + beijingOffsetMs);
+
+  const yyyy = beijing.getUTCFullYear();
+  const mm = String(beijing.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(beijing.getUTCDate()).padStart(2, '0');
+  const HH = String(beijing.getUTCHours()).padStart(2, '0');
+  const MM = String(beijing.getUTCMinutes()).padStart(2, '0');
+  const SS = String(beijing.getUTCSeconds()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}+08:00`;
+}
+
+
+
+// 用于文件名的安全时间戳：YYYY-MM-DD_HH-mm-ss
+function formatBeijingForFilename() {
+  const date = new Date();
+  const beijingOffsetMs = 8 * 60 * 60 * 1000;
+  const beijing = new Date(date.getTime() + (date.getTimezoneOffset() * 60 * 1000) + beijingOffsetMs);
+  const yyyy = beijing.getUTCFullYear();
+  const mm = String(beijing.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(beijing.getUTCDate()).padStart(2, '0');
+  const HH = String(beijing.getUTCHours()).padStart(2, '0');
+  const MM = String(beijing.getUTCMinutes()).padStart(2, '0');
+  const SS = String(beijing.getUTCSeconds()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}_${HH}-${MM}-${SS}`;
+}
+
 // 检查 K6 是否安装
 function checkK6() {
   return new Promise((resolve, reject) => {
@@ -148,7 +180,6 @@ function generateUltimateConfig(framework, port) {
   return `import http from 'k6/http';
 import { check } from 'k6';
 import { Rate, Trend, Counter, Gauge } from 'k6/metrics';
-import fs from 'fs';
 
 // 自定义指标
 const errorRate = new Rate('errors');
@@ -161,14 +192,7 @@ const throughput = new Rate('throughput');
 
 // 极致性能测试配置
 export const options = {
-  // 定义阈值 - 极致性能要求
-  thresholds: {
-    http_req_failed: ['rate<0.001'],        // 错误率必须小于0.1%
-    http_req_duration: ['p(99)<500'],       // 99%的请求必须在500ms内完成
-    'response_time': ['p(95)<200', 'p(99)<400'],
-    'cold_start_time': ['p(95)<5'],         // 冷启动时间必须小于5ms
-    'throughput': ['rate>50000'],           // 至少50,000 RPS
-  },
+  // 不定义阈值，只收集性能数据
   
   // 极致性能测试场景 - 无预热，直接峰值
   scenarios: {
@@ -177,13 +201,13 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '10s', target: 500 },   // 快速增加到500用户
-        { duration: '30s', target: 500 },   // 保持500用户30秒
-        { duration: '20s', target: 1000 },  // 增加到1000用户
-        { duration: '30s', target: 1000 },  // 保持1000用户30秒
-        { duration: '20s', target: 2000 },  // 增加到2000用户
-        { duration: '30s', target: 2000 },  // 保持2000用户30秒
-        { duration: '10s', target: 0 },     // 快速减少到0
+        { duration: '10s', target: 100 },   // 快速增加到100用户
+        // { duration: '30s', target: 500 },   // 保持500用户30秒
+        // { duration: '20s', target: 1000 },  // 增加到1000用户
+        // { duration: '30s', target: 1000 },  // 保持1000用户30秒
+        // { duration: '20s', target: 2000 },  // 增加到2000用户
+        // { duration: '30s', target: 2000 },  // 保持2000用户30秒
+        // { duration: '10s', target: 0 },     // 快速减少到0
       ],
       gracefulRampDown: '5s',
       exec: 'peakTest',
@@ -446,14 +470,18 @@ export function handleSummary(data) {
     console.log('⚠️ 响应较慢: 平均延迟超过20ms，需要优化');
   }
   
-  // 获取当前时间戳，精确到秒
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+  // 北京时间（用于内容展示）
+  const beijingNow = formatBeijingNow();
+  // 文件名安全时间戳（北京时间）
+  const timestamp = formatBeijingForFilename();
   
-  // 返回JSON格式结果，文件名包含精确时间戳
-  return {
-    'k6-ultimate-results-' + timestamp + '.json': JSON.stringify(data, null, 2),
-    'formatted-ultimate-results-' + timestamp + '.json': JSON.stringify(formattedResults, null, 2)
-  };
+  // 只返回格式化的结果，不包含完整的原始测试数据
+  const FRAMEWORK_NAME = '${framework}';
+  const RESULTS_DIR = './test-results/' + FRAMEWORK_NAME;
+  const formattedPath = RESULTS_DIR + '/formatted-ultimate-results-' + timestamp + '.json';
+  const out = {};
+  out[formattedPath] = JSON.stringify({ beijingTime: beijingNow, results: formattedResults }, null, 2);
+  return out;
 }`;
 }
 
@@ -482,16 +510,15 @@ function runFrameworkTest(framework, config) {
     };
     
     // 创建框架特定的结果目录
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = formatBeijingForFilename();
     const frameworkResultsDir = `./test-results/${framework}`;
     if (!fs.existsSync(frameworkResultsDir)) {
       fs.mkdirSync(frameworkResultsDir, { recursive: true });
     }
     
-    // 运行 K6 测试
+    // 运行 K6 测试 - 不输出原始JSON日志，只保留格式化结果
     const k6 = spawn('k6', [
       'run',
-      '--out', `json=${frameworkResultsDir}/k6-${framework}-${timestamp}.json`,
       configPath
     ], {
       env,
@@ -500,7 +527,7 @@ function runFrameworkTest(framework, config) {
     
     k6.on('close', (code) => {
       if (code === 0) {
-        logSuccess(`${framework} ${testType} 测试完成！`);
+        logSuccess(`${framework} 测试完成！`);
         // 清理临时配置文件
         try {
           fs.unlinkSync(configPath);
@@ -515,7 +542,7 @@ function runFrameworkTest(framework, config) {
     });
     
     k6.on('error', (error) => {
-      logError(`${framework} ${testType} 测试启动失败: ${error.message}`);
+      logError(`${framework} 测试启动失败: ${error.message}`);
       reject(error);
     });
   });

@@ -80,7 +80,7 @@ class ServerManager {
           (output.includes("Server running") ||
             output.includes("listening") ||
             output.includes("running at") ||
-            output.includes("🦊 Elysia is running") ||
+            output.includes("🚀 Elysia is running") ||
             output.includes("Server started") ||
             output.includes("Ready"))
         ) {
