@@ -52,6 +52,12 @@ const TEST_CONFIGS = {
     directory: 'frameworks/elysia',
     startCommand: ['bun', 'run', 'src/index.ts'],
     description: 'Elysia 框架测试'
+  },
+  'gin': {
+    port: 3000,
+    directory: 'frameworks/gin',
+    startCommand: ['./run.sh'],
+    description: 'Golang Gin 框架测试'
   }
 };
 
