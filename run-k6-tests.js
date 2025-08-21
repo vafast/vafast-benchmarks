@@ -2,12 +2,18 @@
 
 /**
  * K6 完全集成测试脚本
- * 支持单独测试一个框架，命令行风格：node run-k6-tests.js elysia
+ * 支持测试框架和指定接口的极限性能
+ * 命令行用法：
+ *   node run-k6-tests.js <框架名> [接口名]
+ *   node run-k6-tests.js elysia                    # 测试elysia框架所有接口
+ *   node run-k6-tests.js elysia json              # 只测试elysia框架的JSON接口
  * 所有测试配置和逻辑都集成在一个文件中
  */
 
 import { spawn } from 'child_process';
 import fs from 'fs';
+import path from 'path';
+import { format, toZonedTime } from 'date-fns-tz';
 
 // 测试配置 - 所有框架统一使用3000端口，依次启动测试
 const TEST_CONFIGS = {
@@ -103,34 +109,18 @@ function logPerformance(message) {
 
 // 将当前时间格式化为北京时间标准格式：YYYY-MM-DD HH:mm:ss+08:00
 function formatBeijingNow() {
-  const date = new Date();
-  // 北京时间是 UTC+8
-  const beijingOffsetMs = 8 * 60 * 60 * 1000;
-  const beijing = new Date(date.getTime() + (date.getTimezoneOffset() * 60 * 1000) + beijingOffsetMs);
-
-  const yyyy = beijing.getUTCFullYear();
-  const mm = String(beijing.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(beijing.getUTCDate()).padStart(2, '0');
-  const HH = String(beijing.getUTCHours()).padStart(2, '0');
-  const MM = String(beijing.getUTCMinutes()).padStart(2, '0');
-  const SS = String(beijing.getUTCSeconds()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}+08:00`;
+  const timeZone = 'Asia/Shanghai';
+  const now = new Date();
+  const beijingTime = toZonedTime(now, timeZone);
+  return format(beijingTime, 'yyyy-MM-dd HH:mm:ssXXX', { timeZone });
 }
-
-
 
 // 用于文件名的安全时间戳：YYYY-MM-DD_HH-mm-ss
 function formatBeijingForFilename() {
-  const date = new Date();
-  const beijingOffsetMs = 8 * 60 * 60 * 1000;
-  const beijing = new Date(date.getTime() + (date.getTimezoneOffset() * 60 * 1000) + beijingOffsetMs);
-  const yyyy = beijing.getUTCFullYear();
-  const mm = String(beijing.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(beijing.getUTCDate()).padStart(2, '0');
-  const HH = String(beijing.getUTCHours()).padStart(2, '0');
-  const MM = String(beijing.getUTCMinutes()).padStart(2, '0');
-  const SS = String(beijing.getUTCSeconds()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}_${HH}-${MM}-${SS}`;
+  const timeZone = 'Asia/Shanghai';
+  const now = new Date();
+  const beijingTime = toZonedTime(now, timeZone);
+  return format(beijingTime, 'yyyy-MM-dd_HH-mm-ss', { timeZone });
 }
 
 // 启动框架服务器
@@ -297,467 +287,121 @@ function installK6() {
   });
 }
 
-// 生成 K6 测试配置内容
-function generateK6Config(framework, port) {
-  return generateUltimateConfig(framework, port);
-}
-
-// 生成极致性能测试配置
-function generateUltimateConfig(framework, port) {
-  return `import http from 'k6/http';
-import { check } from 'k6';
-import { Rate, Trend, Counter, Gauge } from 'k6/metrics';
-
-// 自定义指标
-const errorRate = new Rate('errors');
-const responseTime = new Trend('response_time');
-const coldStartTime = new Trend('cold_start_time');
-const requestsPerSecond = new Rate('requests_per_second');
-const totalRequests = new Counter('total_requests');
-const activeUsers = new Gauge('active_users');
-const throughput = new Rate('throughput');
-
-// 极致性能测试配置
-export const options = {
-  // 不定义阈值，只收集性能数据
-  
-  // 按照k6官方文档配置百分位数计算
-  thresholds: {
-    // 启用百分位数计算 - 使用k6标准格式
-    'http_req_duration': ['p(50)<100', 'p(95)<200', 'p(99)<500'],
+// 定义所有可用的接口
+const AVAILABLE_ENDPOINTS = {
+  'json': {
+    path: '/techempower/json',
+    method: 'GET',
+    name: 'JSON序列化',
+    contentType: 'application/json',
+    weight: 1
   },
-  
-  // 配置摘要统计 - 确保P99被计算
-  summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)'],
-  
-  // 极致性能测试场景 - 无预热，直接峰值
-  scenarios: {
-    // 直接峰值测试 - 无预热阶段
-    peak_test: {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '10s', target: 100 },   // 快速增加到100用户
-        // { duration: '30s', target: 500 },   // 保持500用户30秒
-        // { duration: '20s', target: 1000 },  // 增加到1000用户
-        // { duration: '30s', target: 1000 },  // 保持1000用户30秒
-        // { duration: '20s', target: 2000 },  // 增加到2000用户
-        // { duration: '30s', target: 2000 },  // 保持2000用户30秒
-        // { duration: '10s', target: 0 },     // 快速减少到0
+  'plaintext': {
+    path: '/techempower/plaintext',
+    method: 'GET',
+    name: '纯文本响应',
+    contentType: 'text/plain',
+    weight: 1
+  },
+  'db': {
+    path: '/techempower/db',
+    method: 'GET',
+    name: '数据库查询',
+    contentType: 'application/json',
+    qs: { queries: 1 },
+    weight: 1
+  },
+  'updates': {
+    path: '/techempower/updates',
+    method: 'GET',
+    name: '数据库更新',
+    contentType: 'application/json',
+    qs: { queries: 1 },
+    weight: 1
+  },
+  'complex-json': {
+    path: '/techempower/complex-json',
+    method: 'GET',
+    name: '复杂JSON序列化',
+    contentType: 'application/json',
+    qs: { depth: 5 },
+    weight: 1
+  },
+  'batch-process': {
+    path: '/techempower/batch-process',
+    method: 'POST',
+    name: '批量数据处理',
+    contentType: 'application/json',
+    body: {
+      items: [
+        { id: 1, value: 100, name: "item1" },
+        { id: 2, value: 200, name: "item2" },
+        { id: 3, value: 300, name: "item3" }
       ],
-      gracefulRampDown: '5s',
-      exec: 'peakTest',
+      operation: "sum"
     },
+    weight: 1
   },
-  
-  // 输出配置
-  ext: {
-    loadimpact: {
-      distribution: {
-        '测试环境': { loadZone: 'amazon:us:ashburn', percent: 100 },
+  'schema-validate': {
+    path: '/schema/validate',
+    method: 'POST',
+    name: 'Schema验证',
+    contentType: 'application/json',
+    body: {
+      user: {
+        name: "张三",
+        phone: "13800138001",
+        age: 25,
+        active: true,
+        tags: ["user", "test", "premium"],
+        preferences: {
+          theme: "light",
+          language: "zh-CN",
+          notifications: true,
+          privacy: "public"
+        }
       },
+      metadata: {
+        version: "1.0.0",
+        timestamp: "2024-01-01T00:00:00.000Z",
+        sessionId: "static-session-12345",
+        deviceId: "static-device-67890",
+        environment: "production",
+        region: "cn-north-1"
+      }
     },
-  },
-};
-
-// 静态测试数据 - 确保测试公平性
-const testData = {
-  schemaValidation: {
-    user: {
-      name: "张三",
-      phone: "13800138001",
-      age: 25,
-      active: true,
-      tags: ["user", "test", "premium"],
-      preferences: {
-        theme: "light",
-        language: "zh-CN",
-        notifications: true,
-        privacy: "public"
-      },
-    },
-    metadata: {
-      version: "1.0.0",
-      timestamp: "2024-01-01T00:00:00.000Z",
-      sessionId: "static-session-12345",
-      deviceId: "static-device-67890",
-      environment: "production",
-      region: "cn-north-1"
-    },
-  },
-};
-
-// 记录第一次请求的时间
-let firstRequestTime = null;
-let isFirstRequest = true;
-
-// 极致性能测试函数
-export function peakTest() {
-  runTest('peak');
-}
-
-// 通用测试函数 - 优化版本
-function runTest(testType) {
-  const baseUrl = 'http://localhost:${port}';
-  const framework = '${framework}';
-  
-  // 根据测试类型调整端点权重
-  const endpoints = getEndpointsByTestType(testType);
-  
-  // 随机选择一个端点进行测试
-  const endpoint = endpoints[Math.floor(Math.random() * endpoints.length)];
-  const url = \`\${baseUrl}\${endpoint.path}\`;
-  
-  let response;
-  const startTime = Date.now();
-  
-  // 记录第一次请求的cold start时间
-  if (isFirstRequest) {
-    firstRequestTime = startTime;
-    isFirstRequest = false;
+    weight: 1
   }
+};
+
+// 复制并自定义K6配置模板文件
+function prepareK6ConfigFile(framework, port, specificEndpoint = null) {
+  const templatePath = './k6-config-template.js';
+  const configPath = `./k6-test-${framework}${specificEndpoint ? '-' + specificEndpoint : ''}.js`;
   
   try {
-    // 优化请求头 - 最小化开销
-    const headers = {
-      'Accept': endpoint.contentType,
-      'Connection': 'keep-alive'
-    };
+    // 读取模板文件
+    const templateContent = fs.readFileSync(templatePath, 'utf8');
     
-    if (endpoint.method === 'GET') {
-      response = http.get(url, { 
-        headers,
-        tags: { name: endpoint.name }
-      });
-    } else {
-      response = http.post(url, JSON.stringify(endpoint.body), { 
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        tags: { name: endpoint.name }
-      });
-    }
+    // 预先计算时间戳（使用date-fns）
+    const timestamp = formatBeijingForFilename();
+    const currentTime = formatBeijingNow();
     
-    const responseTimeMs = Date.now() - startTime;
-    responseTime.add(responseTimeMs);
-    totalRequests.add(1);
-    throughput.add(1);
+    // 使用字符串替换来自定义配置（避免复杂的模板引擎）
+    let customizedContent = templateContent
+      .replace(/\$\{port\}/g, port)
+      .replace(/\$\{framework\}/g, framework)
+      .replace(/\$\{specificEndpoint\}/g, specificEndpoint || '')
+      .replace(/\$\{timestamp\}/g, timestamp)
+      .replace(/\$\{currentTime\}/g, currentTime);
     
-    // 计算cold start时间（第一次请求的响应时间）
-    if (firstRequestTime && firstRequestTime === startTime) {
-      coldStartTime.add(responseTimeMs);
-    }
+    // 写入自定义配置文件
+    fs.writeFileSync(configPath, customizedContent);
     
-    // 最小化检查 - 只检查状态码
-    const success = check(response, {
-      [\`\${endpoint.name} - 状态码是 200\`]: (r) => r.status === 200,
-    });
-    
-    if (!success) {
-      errorRate.add(1);
-      console.error(\`❌ \${endpoint.name} 测试失败:\`, response.status);
-    } else {
-      errorRate.add(0);
-      // 只在调试模式下输出成功信息
-      if (__ENV.DEBUG) {
-        console.log(\`✅ \${endpoint.name} 测试成功: \${responseTimeMs}ms\`);
-      }
-    }
-    
+    return configPath;
   } catch (error) {
-    errorRate.add(1);
-    console.error(\`❌ \${endpoint.name} 请求异常:\`, error.message);
+    throw new Error(`创建K6配置文件失败: ${error.message}`);
   }
-  
-  // 极致性能测试 - 无任何延迟
-  // 移除所有 sleep() 调用
-}
-
-// 根据测试类型获取端点配置 - 优化版本
-function getEndpointsByTestType(testType) {
-  const baseEndpoints = [
-    { 
-      path: '/techempower/json', 
-      method: 'GET', 
-      name: 'JSON序列化', 
-      contentType: 'application/json',
-      weight: 1 
-    },
-    { 
-      path: '/techempower/plaintext', 
-      method: 'GET', 
-      name: '纯文本响应', 
-      contentType: 'text/plain',
-      weight: 1 
-    },
-    { 
-      path: '/techempower/db', 
-      method: 'GET', 
-      name: '数据库查询', 
-      contentType: 'application/json',
-      qs: { queries: 1 },
-      weight: 1 
-    },
-    { 
-      path: '/techempower/updates', 
-      method: 'GET', 
-      name: '数据库更新', 
-      contentType: 'application/json',
-      qs: { queries: 1 },
-      weight: 1 
-    },
-    { 
-      path: '/techempower/complex-json', 
-      method: 'GET', 
-      name: '复杂JSON序列化', 
-      contentType: 'application/json',
-      qs: { depth: 5 },
-      weight: 1 
-    },
-    { 
-      path: '/techempower/batch-process', 
-      method: 'POST', 
-      name: '批量数据处理', 
-      contentType: 'application/json',
-      body: {
-        items: [
-          { id: 1, value: 100, name: "item1" },
-          { id: 2, value: 200, name: "item2" },
-          { id: 3, value: 300, name: "item3" }
-        ],
-        operation: "sum"
-      },
-      weight: 1 
-    },
-    { 
-      path: '/schema/validate', 
-      method: 'POST', 
-      name: 'Schema验证', 
-      contentType: 'application/json',
-      body: testData.schemaValidation, 
-      weight: 1 
-    },
-  ];
-  
-  // 根据测试类型调整权重
-  switch (testType) {
-    case 'peak':
-      return baseEndpoints.map(ep => ({ ...ep, weight: ep.weight * 0.25 }));
-    default:
-      return baseEndpoints;
-  }
-}
-
-// 测试完成后的钩子 - 极致性能版本
-export function handleSummary(data) {
-  console.log('📊 极致性能测试完成，生成详细报告...');
-  
-  // 计算自定义指标 - 修复冷启动时间计算
-  const coldStart = data.metrics.cold_start_time?.values?.avg || 0;
-  const avgLatency = data.metrics.http_req_duration?.values?.avg || 0;
-  const p95Latency = data.metrics.http_req_duration?.values?.['p(95)'] || 0;
-  
-  // 按照k6官方文档的方式获取P99延迟
-  let p99Latency = 0;
-  
-  // 尝试多种可能的P99键名格式
-  if (data.metrics.http_req_duration?.values) {
-    const values = data.metrics.http_req_duration.values;
-    // k6可能使用不同的键名格式
-    p99Latency = values['p(99)'] || values['p99'] || values['p99.0'] || 0;
-  }
-  
-  // 如果P99为0，使用P95作为替代，或者计算一个合理的值
-  if (p99Latency === 0) {
-    // 使用P95 + 20%作为P99的估算值（这是统计学上的合理估算）
-    p99Latency = p95Latency * 1.2;
-  }
-  const totalReq = data.metrics.http_reqs?.values?.count || 0;
-  const testDuration = data.state.testRunDuration ? data.state.testRunDuration / 1000 : 10;
-  const rps = data.metrics.http_reqs?.values?.rate || (totalReq / testDuration);
-  const errorRateValue = data.metrics.http_req_failed?.values?.rate || 0;
-  
-  // 计算每个接口的详细性能指标
-  const endpointMetrics = {};
-  
-  // 从测试数据中获取所有端点信息
-  const testEndpoints = getEndpointsByTestType('peak');
-  
-  // 计算每个接口的真实性能指标
-  const endpointRPSData = testEndpoints.map(endpoint => {
-    // 从k6指标中获取该接口的真实数据
-    const endpointName = endpoint.name;
-    
-    // 获取该接口的延迟指标（按tags.name分组）
-    let endpointAvgLatency = avgLatency;
-    let endpointP95Latency = p95Latency;
-    let endpointP99Latency = p99Latency;
-    
-    // 尝试从分组指标中获取该接口的真实延迟数据
-    if (data.metrics.http_req_duration?.values) {
-      // 查找该接口的延迟指标
-      const endpointMetrics = data.metrics.http_req_duration.values;
-      if (endpointMetrics[endpointName]) {
-        endpointAvgLatency = endpointMetrics[endpointName].avg || avgLatency;
-        endpointP95Latency = endpointMetrics[endpointName]['p(95)'] || p95Latency;
-        endpointP99Latency = endpointMetrics[endpointName]['p(99)'] || p99Latency;
-      }
-    }
-    
-    // 计算该接口的RPS（按接口数量平均分配，这是合理的）
-    const endpointRPS = rps / testEndpoints.length;
-    
-    // 计算该接口的请求数（按接口数量平均分配）
-    const endpointRequests = Math.floor(totalReq / testEndpoints.length);
-    
-    return {
-      path: endpoint.path,
-      name: endpoint.name,
-      method: endpoint.method,
-      rps: endpointRPS,
-      avgLatency: endpointAvgLatency,
-      p95Latency: endpointP95Latency,
-      p99Latency: endpointP99Latency,
-      requests: endpointRequests,
-      contentType: endpoint.contentType,
-      hasQueryParams: !!endpoint.qs,
-      hasRequestBody: !!endpoint.body,
-      weight: endpoint.weight
-    };
-  });
-  
-  // 按延迟排序（延迟越低性能越好）
-  endpointRPSData.sort((a, b) => a.avgLatency - b.avgLatency);
-  
-  // 为每个接口添加性能指标
-  endpointRPSData.forEach((endpoint) => {
-    endpointMetrics[endpoint.path] = {
-      name: endpoint.name,
-      method: endpoint.method,
-      path: endpoint.path,
-      performance: {
-        avgLatency: endpoint.avgLatency.toFixed(2) + ' ms',
-        p95Latency: endpoint.p95Latency.toFixed(2) + ' ms',
-        p99Latency: endpoint.p99Latency.toFixed(2) + ' ms',
-        // 真实的RPS（按接口数量平均分配）
-        estimatedRPS: endpoint.rps.toFixed(2) + ' rps',
-        // 真实的请求数
-        estimatedRequests: endpoint.requests.toLocaleString() + ' req',
-        successRate: ((1 - errorRateValue) * 100).toFixed(3) + '%'
-      },
-      testData: {
-        contentType: endpoint.contentType,
-        hasQueryParams: endpoint.hasQueryParams,
-        hasRequestBody: endpoint.hasRequestBody,
-        weight: endpoint.weight
-      }
-    };
-  });
-  
-  // 生成格式化的结果
-  const formattedResults = {
-    coldStart: {
-      emoji: "👑",
-      name: "冷启动",
-      value: \`\${coldStart.toFixed(2)} ms\`,
-      description: \`\${coldStart.toFixed(2)} ms. 无延迟，无妥协。冷启动王者之冠属于我们。\`
-    },
-    requestsPerSecond: {
-      emoji: "⚡️",
-      name: "每秒请求数",
-      value: \`\${rps.toLocaleString()} rps\`,
-      description: "为瞬时流量而生 — 无需预热。"
-    },
-    avgLatency: {
-      emoji: "📉",
-      name: "平均延迟",
-      value: \`\${avgLatency.toFixed(2)} ms\`,
-      description: "压力之下依然迅捷。始终如一。"
-    },
-    p95Latency: {
-      emoji: "📊",
-      name: "P95延迟",
-      value: \`\${p95Latency.toFixed(2)} ms\`,
-      description: "95%的请求延迟都在此范围内"
-    },
-    p99Latency: {
-      emoji: "🎯",
-      name: "P99延迟",
-      value: \`\${p99Latency.toFixed(2)} ms\`,
-      description: "99%的请求延迟都在此范围内"
-    },
-    errorRate: {
-      emoji: "🚨",
-      name: "错误率",
-      value: \`\${(errorRateValue * 100).toFixed(3)}%\`,
-      description: "请求失败率，越低越好"
-    },
-    totalRequests: {
-      emoji: "🎯",
-      name: "总请求数",
-      value: \`\${totalReq.toLocaleString()} req / \${testDuration.toFixed(0)}s\`,
-      description: \`在\${testDuration.toFixed(0)}秒内完成的总请求数\`
-    }
-  };
-  
-  // 生成控制台输出
-  console.log('\\n🚀 极致性能测试结果 🚀');
-  console.log('='.repeat(60));
-  
-  Object.entries(formattedResults).forEach(([key, result]) => {
-    console.log(\`\${result.emoji} \${result.name}\`);
-    console.log(\`   \${result.value}\`);
-    console.log(\`   \${result.description}\`);
-    console.log('');
-  });
-  
-  // 性能评估 - 极致性能标准
-  console.log('📈 极致性能评估');
-  console.log('='.repeat(30));
-  
-  if (rps > 50000) {
-    console.log('🏆 极致性能: RPS超过50,000，性能表现卓越！');
-  } else if (rps > 30000) {
-    console.log('🥇 优秀性能: RPS超过30,000，性能表现优秀！');
-  } else if (rps > 20000) {
-    console.log('🥈 良好性能: RPS超过20,000，性能表现良好！');
-  } else {
-    console.log('🥉 一般性能: RPS低于20,000，有优化空间');
-  }
-  
-  if (avgLatency < 1) {
-    console.log('⚡️ 极速响应: 平均延迟低于1ms，响应速度极快！');
-  } else if (avgLatency < 5) {
-    console.log('🚀 快速响应: 平均延迟低于5ms，响应速度很快！');
-  } else if (avgLatency < 20) {
-    console.log('✅ 正常响应: 平均延迟低于20ms，响应速度正常');
-  } else {
-    console.log('⚠️ 响应较慢: 平均延迟超过20ms，需要优化');
-  }
-  
-  // 只返回格式化的结果，不包含完整的原始测试数据
-  const FRAMEWORK_NAME = '${framework}';
-  const RESULTS_DIR = './test-results/' + FRAMEWORK_NAME;
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const formattedPath = RESULTS_DIR + '/formatted-ultimate-results-' + timestamp + '.json';
-  const out = {};
-  out[formattedPath] = JSON.stringify({ 
-    framework: '${framework}',
-    beijingTime: '${new Date().toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}',
-    results: formattedResults,
-    endpointDetails: endpointMetrics,
-    summary: {
-      totalRequests: totalReq,
-      testDuration: testDuration,
-      rps: rps,
-      avgLatency: avgLatency,
-      p95Latency: p95Latency,
-      p99Latency: p99Latency,
-      errorRate: errorRateValue,
-      coldStart: coldStart,
-      totalEndpoints: testEndpoints.length
-    }
-  }, null, 2);
-  return out;
-}`;
 }
 
 
@@ -765,12 +409,16 @@ export function handleSummary(data) {
 
 
 // 运行单个框架测试（包含启动和停止服务器）
-function runFrameworkTest(framework, config) {
+function runFrameworkTest(framework, config, specificEndpoint = null) {
   return new Promise(async (resolve, reject) => {
     let server = null;
     
     try {
-      logHeader(`${config.description} (端口: ${config.port})`);
+      const testDescription = specificEndpoint 
+        ? `${config.description} - ${getEndpointDisplayName(specificEndpoint)} 接口测试`
+        : `${config.description} - 所有接口测试`;
+      
+      logHeader(`${testDescription} (端口: ${config.port})`);
       logPerformance(`开始冷启动性能测试`);
       
       // 1. 启动服务器（测试真正的冷启动）
@@ -780,24 +428,30 @@ function runFrameworkTest(framework, config) {
       await waitForPort(config.port);
       logSuccess(`${framework} 服务器就绪，开始性能测试`);
       
-      // 3. 生成 K6 测试配置
-      const k6Config = generateK6Config(framework, config.port);
-      const configPath = `./k6-test-${framework}.js`;
-      fs.writeFileSync(configPath, k6Config);
+      // 3. 准备 K6 测试配置文件
+      const configPath = prepareK6ConfigFile(framework, config.port, specificEndpoint);
       logInfo(`测试配置文件: ${configPath}`);
       
       // 4. 设置环境变量
       const env = {
         ...process.env,
-        BASE_URL: `http://localhost:${config.port}`,
-        FRAMEWORK: framework.toUpperCase(),
-        framework: framework
+        FRAMEWORK: framework,
+        PORT: config.port.toString(),
+        TARGET_ENDPOINT: specificEndpoint || ''
       };
       
-      // 5. 创建框架特定的结果目录
+      // 5. 创建框架和接口特定的结果目录
+      const endpointName = specificEndpoint || 'all-endpoints';
       const frameworkResultsDir = `./test-results/${framework}`;
+      const endpointResultsDir = `./test-results/${framework}/${endpointName}`;
+      
       if (!fs.existsSync(frameworkResultsDir)) {
         fs.mkdirSync(frameworkResultsDir, { recursive: true });
+      }
+      
+      if (!fs.existsSync(endpointResultsDir)) {
+        fs.mkdirSync(endpointResultsDir, { recursive: true });
+        logSuccess(`创建接口测试目录: ${endpointResultsDir}`);
       }
       
       // 6. 运行 K6 测试
@@ -821,7 +475,8 @@ function runFrameworkTest(framework, config) {
         }
         
         if (code === 0) {
-          logSuccess(`${framework} 测试完成！`);
+          const testType = specificEndpoint ? `${specificEndpoint} 接口` : '所有接口';
+          logSuccess(`${framework} ${testType}测试完成！`);
           resolve();
         } else {
           logError(`${framework} 测试失败，退出码: ${code}`);
@@ -847,63 +502,54 @@ function runFrameworkTest(framework, config) {
   });
 }
 
-// 运行所有框架测试
-async function runAllTests() {
-  try {
-          logHeader(`开始 K6 极致性能测试`);
-    
-    // 检查 K6 是否安装
-    try {
-      await checkK6();
-      logSuccess('K6 已安装');
-    } catch (error) {
-      logInfo('K6 未安装，正在安装...');
-      await installK6();
-    }
-    
-    // 创建测试结果目录
-    const resultsDir = './test-results';
-    if (!fs.existsSync(resultsDir)) {
-      fs.mkdirSync(resultsDir, { recursive: true });
-      logSuccess('创建测试结果目录');
-    }
-    
-    // 显示测试配置
-    logSubHeader(`冷启动性能测试配置`);
-    logInfo('测试特点:', 'blue');
-    log('  🚀 真正的冷启动测试 - 每次测试前启动服务器', 'green');
-    log('  ⚡️ 统一端口3000 - 依次启动和停止服务', 'green');
-    log('  📊 高并发：100 并发用户', 'green');
-    log('  ⏱️  测试时长：10 秒', 'green');
-    log('  🔄 自动服务器管理 - 启动→测试→停止', 'green');
-    
-    // 运行每个框架的测试
-    for (const [framework, config] of Object.entries(TEST_CONFIGS)) {
-      try {
-        await runFrameworkTest(framework, config);
-        
-        // 测试间隔
-        if (framework !== Object.keys(TEST_CONFIGS).slice(-1)[0]) {
-          logInfo('等待 10 秒后开始下一个测试...');
-          await new Promise(resolve => setTimeout(resolve, 10000));
-        }
-      } catch (error) {
-        logError(`${framework} 测试失败: ${error.message}`);
-        // 继续下一个测试
-      }
-    }
-    
-    logHeader('所有测试完成！');
-    logSuccess('测试结果已保存到 test-results 目录');
-    
-  } catch (error) {
-    logError(`测试运行失败: ${error.message}`);
-    process.exit(1);
-  }
+// 辅助函数：验证接口是否有效
+function isValidEndpoint(endpoint) {
+  return Object.keys(AVAILABLE_ENDPOINTS).includes(endpoint) ||
+         Object.values(AVAILABLE_ENDPOINTS).some(ep => {
+           const endpointId = ep.path.split('/').pop();
+           const endpointKey = endpointId.replace('-', '');
+           return endpointId === endpoint || endpointKey === endpoint || ep.name === endpoint;
+         });
 }
 
-// 运行特定框架测试
-async function runSpecificTest(framework) {
+// 辅助函数：获取接口显示名称
+function getEndpointDisplayName(endpoint) {
+  if (AVAILABLE_ENDPOINTS[endpoint]) {
+    return AVAILABLE_ENDPOINTS[endpoint].name;
+  }
+  
+  // 尝试精确匹配
+  for (const [key, ep] of Object.entries(AVAILABLE_ENDPOINTS)) {
+    const endpointId = ep.path.split('/').pop();
+    const endpointKey = endpointId.replace('-', '');
+    if (endpointId === endpoint || endpointKey === endpoint || ep.name === endpoint) {
+      return ep.name;
+    }
+  }
+  
+  return endpoint; // 如果找不到，返回原始名称
+}
+
+// 辅助函数：规范化接口名称
+function normalizeEndpointName(endpoint) {
+  if (AVAILABLE_ENDPOINTS[endpoint]) {
+    return endpoint;
+  }
+  
+  // 尝试精确匹配
+  for (const [key, ep] of Object.entries(AVAILABLE_ENDPOINTS)) {
+    const endpointId = ep.path.split('/').pop();
+    const endpointKey = endpointId.replace('-', '');
+    if (endpointId === endpoint || endpointKey === endpoint || ep.name === endpoint) {
+      return key;
+    }
+  }
+  
+  return null; // 如果找不到，返回null
+}
+
+// 运行特定框架和接口测试
+async function runSpecificTest(framework, endpoint = null) {
   if (!TEST_CONFIGS[framework]) {
     logError(`未知的框架: ${framework}`);
     logInfo('可用的框架:', 'blue');
@@ -911,8 +557,22 @@ async function runSpecificTest(framework) {
     process.exit(1);
   }
   
+  // 验证接口名称（如果提供了）
+  if (endpoint && !isValidEndpoint(endpoint)) {
+    logError(`未知的接口: ${endpoint}`);
+    logInfo('可用的接口:', 'blue');
+    Object.entries(AVAILABLE_ENDPOINTS).forEach(([key, ep]) => {
+      log(`  - ${key.padEnd(15)} ${ep.name} (${ep.method} ${ep.path})`, 'blue');
+    });
+    process.exit(1);
+  }
+  
   try {
-    logHeader(`运行 ${framework} 框架极致性能测试`);
+    const testDescription = endpoint 
+      ? `${framework} 框架 ${getEndpointDisplayName(endpoint)} 接口极致性能测试`
+      : `${framework} 框架所有接口极致性能测试`;
+    
+    logHeader(testDescription);
     
     // 检查 K6
     try {
@@ -921,16 +581,24 @@ async function runSpecificTest(framework) {
       await installK6();
     }
     
-    // 创建测试结果目录
+    // 创建测试结果目录结构
     const resultsDir = './test-results';
-    if (!fs.existsSync(resultsDir)) {
-      fs.mkdirSync(resultsDir, { recursive: true });
-    }
+    const frameworkDir = path.join(resultsDir, framework);
+    const endpointDir = path.join(frameworkDir, endpoint || 'all-endpoints');
+    
+    [resultsDir, frameworkDir, endpointDir].forEach(dir => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        logSuccess(`创建目录: ${dir}`);
+      }
+    });
     
     // 运行测试
-    await runFrameworkTest(framework, TEST_CONFIGS[framework]);
+    await runFrameworkTest(framework, TEST_CONFIGS[framework], endpoint);
     
     logHeader('测试完成！');
+    const reportPath = path.join(endpointDir, `performance-report-${formatBeijingForFilename()}.json`);
+    logSuccess(`测试报告保存至: ${reportPath}`);
     
   } catch (error) {
     logError(`测试失败: ${error.message}`);
@@ -942,25 +610,36 @@ async function runSpecificTest(framework) {
 function showHelp() {
   logHeader('K6 极致性能测试运行器帮助');
   log('\n使用方法:', 'bright');
-  log('  node run-k6-tests.js [框架名称]', 'cyan');
-  log('\n参数:', 'bright');
-  log('  框架名称    指定要测试的框架（可选）', 'cyan');
-  log('             如果不指定，将测试所有框架', 'cyan');
+  log('  node run-k6-tests.js <框架名称> <接口名称>', 'cyan');
+  log('\n参数说明:', 'bright');
+  log('  框架名称    指定要测试的框架（必须）', 'cyan');
+  log('  接口名称    指定要测试的接口（必须）', 'cyan');
   log('\n可用的框架:', 'bright');
   Object.entries(TEST_CONFIGS).forEach(([name, config]) => {
     log(`  ${name.padEnd(12)} ${config.description}`, 'cyan');
   });
-  log('\n示例:', 'bright');
-  log('  node run-k6-tests.js', 'cyan');
-  log('  node run-k6-tests.js elysia', 'cyan');
-  log('  node run-k6-tests.js vafast-mini', 'cyan');
-  log('  node run-k6-tests.js express', 'cyan');
+  log('\n可用的接口:', 'bright');
+  Object.entries(AVAILABLE_ENDPOINTS).forEach(([key, endpoint]) => {
+    log(`  ${key.padEnd(15)} ${endpoint.name.padEnd(12)} (${endpoint.method} ${endpoint.path})`, 'cyan');
+  });
+  log('\n使用示例:', 'bright');
+  log('  node run-k6-tests.js elysia json', 'green');
+  log('    # 测试 Elysia 框架的 JSON 序列化接口', 'gray');
+  log('  node run-k6-tests.js express db', 'green');
+  log('    # 测试 Express 框架的数据库查询接口', 'gray');
+  log('  node run-k6-tests.js hono plaintext', 'green');
+  log('    # 测试 Hono 框架的纯文本响应接口', 'gray');
+  log('\n报告结构:', 'bright');
+  log('  test-results/', 'cyan');
+  log('  └── <框架名>/', 'cyan');
+  log('      └── <接口名>/', 'cyan');
+  log('          └── performance-report-YYYY-MM-DD_HH-mm-ss.json', 'cyan');
   log('\n特点:', 'bright');
-  log('  🚀 完全集成，无需额外配置文件', 'green');
-  log('  ⚡️ 极致性能测试，无任何延迟', 'green');
-  log('  📊 自动生成测试配置', 'green');
-  log('  🎯 保持命令行风格', 'green');
-  log('  📁 结果按框架分类保存', 'green');
+  log('  🎯 精确测试：一次只测试一个框架的一个接口', 'green');
+  log('  📁 分类存储：按框架和接口分层存储测试报告', 'green');
+  log('  ⏰ 时间追踪：报告文件名包含精确到秒的时间戳', 'green');
+  log('  📊 完整指标：冷启动、RPS、延迟、成功率等详细数据', 'green');
+  log('  🛠  简单易用：命令行参数直观，易于自动化', 'green');
 }
 
 // 主函数
@@ -972,15 +651,31 @@ async function main() {
     return;
   }
   
-  const framework = args[0] || null;
-  
-  if (framework) {
-    // 运行特定框架测试
-    await runSpecificTest(framework);
-  } else {
-    // 运行所有测试
-    await runAllTests();
+  // 必须提供两个参数：框架名和接口名
+  if (args.length !== 2) {
+    logError('必须提供两个参数：框架名和接口名');
+    logInfo('正确用法: node run-k6-tests.js <框架名> <接口名>');
+    logInfo('查看帮助: node run-k6-tests.js --help');
+    process.exit(1);
   }
+  
+  const framework = args[0];
+  const endpoint = args[1];
+  
+  // 规范化接口名称
+  const normalizedEndpoint = normalizeEndpointName(endpoint);
+  
+  if (!normalizedEndpoint) {
+    logError(`未知的接口: ${endpoint}`);
+    logInfo('可用的接口:');
+    Object.entries(AVAILABLE_ENDPOINTS).forEach(([key, ep]) => {
+      log(`  - ${key.padEnd(15)} ${ep.name} (${ep.method} ${ep.path})`, 'blue');
+    });
+    process.exit(1);
+  }
+  
+  // 运行特定框架和接口的测试
+  await runSpecificTest(framework, normalizedEndpoint);
 }
 
 // 运行脚本
@@ -991,6 +686,5 @@ main().catch(error => {
 
 export {
   runFrameworkTest,
-  runAllTests,
   TEST_CONFIGS
 };
