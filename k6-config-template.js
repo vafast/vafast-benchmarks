@@ -225,6 +225,11 @@ function getEndpointsByTestType(testType, specificEndpoint = null) {
   // 如果指定了特定接口，只返回该接口
   if (specificEndpoint) {
     const filteredEndpoints = availableEndpoints.filter(ep => {
+      // 特殊处理 schema-validate 接口
+      if (specificEndpoint === 'schema-validate' && ep.path === '/schema/validate') {
+        return true;
+      }
+      
       const endpointId = ep.path.split('/').pop(); // 获取路径最后一部分，如 'json', 'complex-json'
       const endpointKey = endpointId.replace('-', ''); // 移除连字符，如 'complexjson'
       
