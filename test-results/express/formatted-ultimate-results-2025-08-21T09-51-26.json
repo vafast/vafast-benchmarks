@@ -1,29 +1,29 @@
 {
-  "framework": "elysia",
-  "beijingTime": "2025/8/21 17:49:52",
+  "framework": "express",
+  "beijingTime": "2025/8/21 17:51:16",
   "results": {
     "coldStart": {
       "emoji": "👑",
       "name": "冷启动",
-      "value": "2.46 ms",
-      "description": "2.46 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
+      "value": "13.85 ms",
+      "description": "13.85 ms. 无延迟，无妥协。冷启动王者之冠属于我们。"
     },
     "requestsPerSecond": {
       "emoji": "⚡️",
       "name": "每秒请求数",
-      "value": "39034.77324431246 rps",
+      "value": "13207.466473953898 rps",
       "description": "为瞬时流量而生 — 无需预热。"
     },
     "avgLatency": {
       "emoji": "📉",
       "name": "平均延迟",
-      "value": "1.10 ms",
+      "value": "3.57 ms",
       "description": "压力之下依然迅捷。始终如一。"
     },
     "p95Latency": {
       "emoji": "📊",
       "name": "P95延迟",
-      "value": "3.46 ms",
+      "value": "11.22 ms",
       "description": "95%的请求延迟都在此范围内"
     },
     "p99Latency": {
@@ -41,18 +41,18 @@
     "totalRequests": {
       "emoji": "🎯",
       "name": "总请求数",
-      "value": "390455 req / 10s",
+      "value": "132171 req / 10s",
       "description": "在10秒内完成的总请求数"
     }
   },
   "summary": {
-    "totalRequests": 390455,
+    "totalRequests": 132171,
     "testDuration": 10,
-    "rps": 39034.77324431246,
-    "avgLatency": 1.0959969036124393,
-    "p95Latency": 3.457,
+    "rps": 13207.466473953898,
+    "avgLatency": 3.573080161306211,
+    "p95Latency": 11.218499999999993,
     "p99Latency": 0,
     "errorRate": 0,
-    "coldStart": 2.4645669291338583
+    "coldStart": 13.854368932038835
   }
 }

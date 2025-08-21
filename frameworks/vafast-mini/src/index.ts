@@ -200,7 +200,7 @@ const routes = defineRoutes([
 
 const server = new Server(routes);
 
-console.log(`⚡ Vafast-mini is running at http://localhost:3004`);
+console.log(`⚡ Vafast-mini is running at http://localhost:3000`);
 console.log("📊 Available benchmark endpoints:");
 console.log("=== Schema 验证接口 ===");
 console.log("  POST /schema/validate               - 综合验证接口 (使用 TypeBox 原生验证)");
@@ -220,6 +220,6 @@ console.log("  GET  /health                                    - 健康检查");
 
 // 导出 fetch 函数，使 Bun 能够启动 HTTP 服务器
 export default {
-  port: 3005,
+  port: 3000,
   fetch: (req: Request) => server.fetch(req),
 };
